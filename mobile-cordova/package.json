@@ -16,6 +16,6 @@
     ]
   },
   "dependencies": {
-    "@red-mobile/cordova-plugin-usb-serial": "^1.3.4"
+    "@red-mobile/cordova-plugin-usb-serial": "^2.0.0"
   }
 }
