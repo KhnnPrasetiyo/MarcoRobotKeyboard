@@ -6,19 +6,20 @@ echo.
 
 :: Check for pyinstaller installation
 where pyinstaller >nul 2>&1
+if %ERRORLEVEL% equ 0 goto :build
+
+echo [WARNING] PyInstaller is not installed or not in PATH!
+echo Attempting to install PyInstaller via pip...
+pip install pyinstaller
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] PyInstaller is not installed or not in PATH!
-    echo Attempting to install PyInstaller via pip...
-    pip install pyinstaller
-    if %ERRORLEVEL% neq 0 (
-        echo [ERROR] Failed to install PyInstaller. Please install it manually.
-        pause
-        exit /b 1
-    )
+    echo [ERROR] Failed to install PyInstaller. Please install it manually.
+    pause
+    exit /b 1
 )
 
+:build
 echo Building single-file executable...
-pyinstaller --onefile --windowed --name="NanoKeyboardController" --noconfirm app/main.py
+python -m PyInstaller --onefile --windowed --name="NanoKeyboardController" --noconfirm app/main.py
 
 if %ERRORLEVEL% equ 0 (
     echo.
