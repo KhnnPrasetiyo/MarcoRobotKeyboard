@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KBD Robot Controller Mobile</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts Outfit & JetBrains Mono -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-emoji">🤖</span>
+      <div class="brand-text">
+        <h1>KBD ROBOT</h1>
+        <p>Studio Kontroler Mobile</p>
+      </div>
+    </div>
+    <div id="conn-status-badge" class="status-badge disconnected">
+      <span class="badge-dot">●</span>
+      <span id="badge-text">Terputus</span>
+    </div>
+  </header>
+
+  <!-- Main Content Scroll Area -->
+  <main class="app-content">
+
+    <!-- 1. DASHBOARD TAB -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="glass-card header-status-card">
+        <div class="status-row">
+          <span class="lbl">Status Sistem:</span>
+          <span id="system-status-text" class="status-val text-red">Terputus</span>
+        </div>
+        <div id="step-progress-row" class="status-row hidden">
+          <span class="lbl">⚡ Langkah Aktif:</span>
+          <span id="step-progress-text" class="status-val text-orange">- / -</span>
+        </div>
+        <div class="status-row">
+          <span class="lbl">⏱ Durasi Pola:</span>
+          <span id="dashboard-duration-text" class="status-val text-green">Pola Kosong</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="dashboard-controls">
+        <button id="btn-start" class="btn-ctrl btn-start">
+          <span class="icon">▶</span> MULAI POLA
+        </button>
+        <button id="btn-stop" class="btn-ctrl btn-stop">
+          <span class="icon">⏹</span> HENTIKAN
+        </button>
+        <button id="btn-estop" class="btn-ctrl btn-estop">
+          <span class="icon">🚨</span> STOP DARURAT
+        </button>
+      </div>
+
+      <!-- Live Log Box -->
+      <div class="glass-card log-card">
+        <div class="card-header">
+          <h3>Output Konsol Langsung</h3>
+          <button id="btn-clear-log" class="btn-mini">🗑 Bersihkan</button>
+        </div>
+        <div id="console-logs" class="console-box"></div>
+      </div>
+    </section>
+
+    <!-- 2. KALIBRASI TAB -->
+    <section id="tab-calibration" class="tab-panel">
+      <div class="section-title">
+        <h2>Kalibrasi Sudut Servo</h2>
+        <p>Atur sudut naik (UP) & tekan (PRESS) masing-masing motor servo.</p>
+      </div>
+
+      <div id="calibration-servos-container">
+        <!-- Dyn generated via JS -->
+      </div>
+    </section>
+
+    <!-- 3. PEMBUAT POLA (BUILDER) TAB -->
+    <section id="tab-pattern" class="tab-panel">
+      <div class="section-title">
+        <h2>Pembuat Pola Urutan</h2>
+        <p>Susun rangkaian aksi penekanan tombol fisik keyboard Anda.</p>
+      </div>
+
+      <!-- Collapsible Settings Button -->
+      <button id="btn-toggle-settings" class="glass-card collapsible-header">
+        <span>⚙️ Loop & Delay Settings</span>
+        <span class="arrow">▼</span>
+      </button>
+      
+      <!-- Collapsible Settings Content -->
+      <div id="collapsible-settings" class="glass-card collapsible-content hidden">
+        <div class="settings-group">
+          <h4>Pengaturan Perulangan (Loop)</h4>
+          <div class="form-row">
+            <label>Mode Loop:</label>
+            <select id="loop-mode-select" class="app-input">
+              <option value="INFINITY">Loop Tak Terbatas (∞)</option>
+              <option value="CUSTOM">Loop Kustom (Jumlah Terbatas)</option>
+            </select>
+          </div>
+          <div id="loop-count-row" class="form-row hidden">
+            <label>Jumlah Loop:</label>
+            <input type="number" id="loop-count-input" class="app-input" value="1" min="1" max="1000">
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h4>Jeda Aksi Acak (Random Delay)</h4>
+          <div class="form-row flex-row">
+            <label>Aktifkan Jeda Acak:</label>
+            <input type="checkbox" id="random-delay-toggle" class="app-toggle">
+          </div>
+          <div id="random-delay-bounds" class="form-row hidden">
+            <div class="input-col">
+              <label>Min (ms):</label>
+              <input type="number" id="random-delay-min" class="app-input" value="100" min="50">
+            </div>
+            <div class="input-col">
+              <label>Max (ms):</label>
+              <input type="number" id="random-delay-max" class="app-input" value="1000" min="50">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Pattern Actions List -->
+      <div class="pattern-builder-container">
+        <div class="list-header">
+          <h3>Daftar Aksi Pola</h3>
+          <span id="pattern-summary-text" class="text-green">0 Aksi</span>
+        </div>
+        
+        <div id="pattern-actions-list" class="actions-list">
+          <!-- Dyn generated -->
+        </div>
+
+        <!-- Action Card Details Editor (Visible if action selected) -->
+        <div id="action-editor-card" class="glass-card editor-card hidden">
+          <div class="editor-header">
+            <h4>Edit Aksi #<span id="editor-action-index">-</span></h4>
+            <button id="btn-close-editor" class="btn-mini">Selesai</button>
+          </div>
+          <div class="form-row">
+            <label>Tipe Aksi:</label>
+            <select id="editor-action-type" class="app-input">
+              <!-- Dyn loaded -->
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Durasi Tekan (ms):</label>
+            <input type="number" id="editor-press-duration" class="app-input" min="50" step="50">
+          </div>
+          <div class="form-row">
+            <label>Durasi Jeda (ms):</label>
+            <input type="number" id="editor-delay-duration" class="app-input" min="0" step="100">
+          </div>
+        </div>
+
+        <!-- Float controls at the bottom of Pattern Tab -->
+        <div class="pattern-controls">
+          <button id="btn-add-action" class="btn-patt btn-add">➕ Aksi Baru</button>
+          <button id="btn-duplicate-action" class="btn-patt btn-dup">📋 Duplikat</button>
+          <button id="btn-delete-action" class="btn-patt btn-del">❌ Hapus</button>
+          <button id="btn-move-up" class="btn-patt btn-move">▲ Atas</button>
+          <button id="btn-move-down" class="btn-patt btn-move">▼ Bawah</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. SIMULASI & TESTER TAB -->
+    <section id="tab-simulation" class="tab-panel">
+      <div class="section-title">
+        <h2>Simulasi & Pengujian Tombol</h2>
+        <p>Uji tombol secara real-time atau lihat simulasi visual gerakan rig servo.</p>
+      </div>
+
+      <!-- Functional Tester Switch -->
+      <div class="glass-card toggle-card">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Mode Penguji Sentuh (Tester)</h3>
+            <p>Sentuh tombol virtual untuk menggerakkan servo langsung.</p>
+          </div>
+          <button id="btn-tester-switch" class="switch-btn off">
+            🔴 TESTER: OFF
+          </button>
+        </div>
+      </div>
+
+      <!-- Simulation View Arena Canvas -->
+      <div class="glass-card arena-card">
+        <div class="arena-header">
+          <h3 id="arena-title">Rig Mockup Keyboard Virtual</h3>
+          <span id="lbl-servo-state" class="badge-state">UP</span>
+        </div>
+        
+        <div class="canvas-wrapper">
+          <canvas id="sim-canvas"></canvas>
+        </div>
+
+        <!-- Simulation Run Controls (only visible when tester is OFF) -->
+        <div id="sim-run-controls" class="sim-controls-row">
+          <button id="btn-run-sim" class="btn-ctrl btn-start">▶ JALANKAN SIMULASI</button>
+          <div class="sim-stats">
+            <span id="lbl-sim-step">Langkah: - / -</span>
+            <span id="lbl-sim-delay">Sisa jeda: 0ms</span>
+          </div>
+        </div>
+        
+        <div id="sim-log-trace" class="sim-trace-box hidden"></div>
+      </div>
+    </section>
+
+    <!-- 5. KONEKSI & PROFIL TAB -->
+    <section id="tab-profiles" class="tab-panel">
+      <div class="section-title">
+        <h2>Koneksi Serial & Profil</h2>
+        <p>Sambungkan Arduino via USB OTG dan kelola penyimpanan profil.</p>
+      </div>
+
+      <!-- Serial Connection Card (Web Serial) -->
+      <div class="glass-card serial-card">
+        <h3>🔌 Sambungan USB OTG Hardware</h3>
+        <p class="desc">Gunakan adaptor OTG untuk menyambungkan Arduino Nano ke HP Anda via USB, lalu klik Hubungkan.</p>
+        
+        <button id="btn-serial-connect" class="btn-ctrl btn-start">
+          🔌 HUBUNGKAN ARDUINO NANO
+        </button>
+
+        <div class="serial-status-log">
+          <p id="lbl-serial-com">Status Port: <b>Tidak Ada Sambungan</b></p>
+        </div>
+
+        <!-- Upload & Download EEPROM Buttons -->
+        <div class="eeprom-actions">
+          <button id="btn-eeprom-upload" class="btn-patt btn-add disabled" disabled>📤 Unggah ke EEPROM Arduino</button>
+          <button id="btn-eeprom-read" class="btn-patt btn-dup disabled" disabled>📥 Ambil Profil dari Arduino</button>
+        </div>
+        <p id="eeprom-status-lbl" class="eeprom-status"></p>
+      </div>
+
+      <!-- Profile Manager Card -->
+      <div class="glass-card profile-card">
+        <h3>💾 Manajer Profil</h3>
+        <p class="desc">Simpan konfigurasi aktif (Sudut Kalibrasi, Aksi, Loop) secara lokal di HP Anda.</p>
+        
+        <div class="profile-buttons-grid">
+          <button id="btn-profile-save" class="btn-patt btn-add">💾 Simpan Profil ke File JSON</button>
+          <button id="btn-profile-load" class="btn-patt btn-dup">📂 Muat Profil dari File JSON</button>
+        </div>
+
+        <div class="validator-warnings-panel">
+          <div class="card-header">
+            <h3>⚠️ Laporan Validasi & Keamanan</h3>
+            <button id="btn-refresh-validation" class="btn-mini">🔄 Refresh</button>
+          </div>
+          <div id="validation-issues-box" class="warnings-box">
+            <!-- Dyn updated -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom App Navigation Bar (Native Mobile Feel) -->
+  <nav class="app-nav">
+    <button class="nav-item active" data-tab="dashboard">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-item" data-tab="calibration">
+      <span class="nav-icon">📐</span>
+      <span class="nav-label">Kalibrasi</span>
+    </button>
+    <button class="nav-item" data-tab="pattern">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Pola</span>
+    </button>
+    <button class="nav-item" data-tab="simulation">
+      <span class="nav-icon">🎮</span>
+      <span class="nav-label">Simulasi</span>
+    </button>
+    <button class="nav-item" data-tab="profiles">
+      <span class="nav-icon">💾</span>
+      <span class="nav-label">Koneksi</span>
+    </button>
+  </nav>
+
+  <!-- Javascript Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

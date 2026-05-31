@@ -1,0 +1,21 @@
+{
+  "name": "com.nanokeyboardcontroller.app",
+  "displayName": "KeyboardRobot",
+  "version": "1.0.0",
+  "description": "Kontroler Robot Keyboard Arduino Nano via USB OTG",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "cordova": {
+    "plugins": {
+      "@red-mobile/cordova-plugin-usb-serial": {}
+    },
+    "platforms": [
+      "android"
+    ]
+  },
+  "dependencies": {
+    "@red-mobile/cordova-plugin-usb-serial": "^1.3.4"
+  }
+}
