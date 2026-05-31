@@ -75,16 +75,49 @@ class PatternBuilderTab(ttk.Frame):
         # Buttons
         btn_grid = ttk.Frame(edit_panel)
         btn_grid.pack(fill="x", pady=5)
+        btn_grid.columnconfigure(0, weight=1)
+        btn_grid.columnconfigure(1, weight=1)
 
-        ttk.Button(btn_grid, text="➕ Tambah Aksi", command=self.add_action).grid(row=0, column=0, padx=2, pady=5, sticky="ew")
-        ttk.Button(btn_grid, text="❌ Hapus", command=self.delete_action).grid(row=0, column=1, padx=2, pady=5, sticky="ew")
-        ttk.Button(btn_grid, text="📋 Duplikat", command=self.duplicate_action).grid(row=1, column=0, padx=2, pady=5, sticky="ew")
+        btn_add = tk.Button(btn_grid, text="✨ Tambah Aksi", font=("Helvetica", 9, "bold"),
+                            bg="#3867d6", fg="white", activebackground="#4b7bec", activeforeground="white",
+                            relief="flat", bd=0, cursor="hand2", command=self.add_action, pady=8)
+        btn_add.grid(row=0, column=0, padx=2, pady=5, sticky="ew")
+        btn_add.bind("<Enter>", lambda e, b=btn_add: b.config(bg="#4b7bec"))
+        btn_add.bind("<Leave>", lambda e, b=btn_add: b.config(bg="#3867d6"))
+
+        btn_delete = tk.Button(btn_grid, text="🗑️ Hapus Aksi", font=("Helvetica", 9, "bold"),
+                               bg="#ff4757", fg="white", activebackground="#ff6b81", activeforeground="white",
+                               relief="flat", bd=0, cursor="hand2", command=self.delete_action, pady=8)
+        btn_delete.grid(row=0, column=1, padx=2, pady=5, sticky="ew")
+        btn_delete.bind("<Enter>", lambda e, b=btn_delete: b.config(bg="#ff6b81"))
+        btn_delete.bind("<Leave>", lambda e, b=btn_delete: b.config(bg="#ff4757"))
+
+        btn_dup = tk.Button(btn_grid, text="📋 Duplikat", font=("Helvetica", 9, "bold"),
+                            bg="#57606f", fg="white", activebackground="#747d8c", activeforeground="white",
+                            relief="flat", bd=0, cursor="hand2", command=self.duplicate_action, pady=8)
+        btn_dup.grid(row=1, column=0, columnspan=2, padx=2, pady=5, sticky="ew")
+        btn_dup.bind("<Enter>", lambda e, b=btn_dup: b.config(bg="#747d8c"))
+        btn_dup.bind("<Leave>", lambda e, b=btn_dup: b.config(bg="#57606f"))
         
         # Up/Down Move Buttons
         btn_move_frame = ttk.Frame(edit_panel)
         btn_move_frame.pack(fill="x", pady=10)
-        ttk.Button(btn_move_frame, text="▲ Geser Ke Atas", command=self.move_up).grid(row=0, column=0, padx=2, sticky="ew")
-        ttk.Button(btn_move_frame, text="▼ Geser Ke Bawah", command=self.move_down).grid(row=0, column=1, padx=2, sticky="ew")
+        btn_move_frame.columnconfigure(0, weight=1)
+        btn_move_frame.columnconfigure(1, weight=1)
+
+        btn_up = tk.Button(btn_move_frame, text="⬆️ Geser Ke Atas", font=("Helvetica", 9, "bold"),
+                           bg="#57606f", fg="white", activebackground="#747d8c", activeforeground="white",
+                           relief="flat", bd=0, cursor="hand2", command=self.move_up, pady=8)
+        btn_up.grid(row=0, column=0, padx=2, sticky="ew")
+        btn_up.bind("<Enter>", lambda e, b=btn_up: b.config(bg="#747d8c"))
+        btn_up.bind("<Leave>", lambda e, b=btn_up: b.config(bg="#57606f"))
+
+        btn_down = tk.Button(btn_move_frame, text="⬇️ Geser Ke Bawah", font=("Helvetica", 9, "bold"),
+                             bg="#57606f", fg="white", activebackground="#747d8c", activeforeground="white",
+                             relief="flat", bd=0, cursor="hand2", command=self.move_down, pady=8)
+        btn_down.grid(row=0, column=1, padx=2, sticky="ew")
+        btn_down.bind("<Enter>", lambda e, b=btn_down: b.config(bg="#747d8c"))
+        btn_down.bind("<Leave>", lambda e, b=btn_down: b.config(bg="#57606f"))
 
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
         self.reload_table()

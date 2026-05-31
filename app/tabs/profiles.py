@@ -12,22 +12,35 @@ class ProfileManagerTab(ttk.Frame):
         self.connection = connection
         self.on_profile_loaded = on_profile_loaded_callback
 
+        # Konfigurasi grid pembungkus untuk memusatkan kartu secara estetis
         self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)  # Kolom kartu tetap
+        self.columnconfigure(2, weight=1)
         self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)     # Baris kartu tetap
+        self.rowconfigure(2, weight=1)
 
-        card = ttk.LabelFrame(self, text=" Manajer Profil & Konfigurasi ", padding=25)
-        card.grid(row=0, column=0, padx=40, pady=40, sticky="n")
+        card = ttk.LabelFrame(self, text=" Manajer Profil & Konfigurasi ", padding=30)
+        card.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
 
-        desc = ttk.Label(card, text="Simpan atau muat konfigurasi lengkap robot (Kalibrasi, Pola, Pengaturan) \nsecara lokal di komputer ini.", 
+        desc = ttk.Label(card, text="Simpan atau muat konfigurasi lengkap robot (Kalibrasi, Pola, Pengaturan)\nsecara lokal di komputer Anda sebagai file berkas JSON.", 
                          font=("Helvetica", 10), justify="center")
-        desc.pack(pady=(0, 20))
+        desc.pack(pady=(0, 25))
 
-        # Standard file buttons
-        btn_save = ttk.Button(card, text="💾 Simpan Profil Aktif ke PC", width=35, command=self.save_profile)
-        btn_save.pack(pady=8)
+        # File buttons
+        self.btn_save = tk.Button(card, text="💾 SIMPAN PROFIL AKTIF KE PC", bg="#3867d6", fg="white", 
+                                  activebackground="#4b7bec", font=("Helvetica", 11, "bold"), relief="flat", bd=0, 
+                                  height=2, width=32, cursor="hand2", command=self.save_profile)
+        self.btn_save.pack(pady=10)
+        self.btn_save.bind("<Enter>", lambda e: self.btn_save.config(bg="#4b7bec"))
+        self.btn_save.bind("<Leave>", lambda e: self.btn_save.config(bg="#3867d6"))
 
-        btn_load = ttk.Button(card, text="📂 Muat Profil dari PC", width=35, command=self.load_profile)
-        btn_load.pack(pady=8)
+        self.btn_load = tk.Button(card, text="📂 MUAT PROFIL DARI PC", bg="#2ed573", fg="white", 
+                                  activebackground="#26af5f", font=("Helvetica", 11, "bold"), relief="flat", bd=0, 
+                                  height=2, width=32, cursor="hand2", command=self.load_profile)
+        self.btn_load.pack(pady=10)
+        self.btn_load.bind("<Enter>", lambda e: self.btn_load.config(bg="#26af5f"))
+        self.btn_load.bind("<Leave>", lambda e: self.btn_load.config(bg="#2ed573"))
 
 
 

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- Google Fonts Outfit & JetBrains Mono -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Cordova bridge loader (loaded automatically when compiled in APK) -->
+  <script src="cordova.js"></script>
 </head>
 <body>
 
@@ -218,7 +220,98 @@
       </div>
     </section>
 
-    <!-- 5. KONEKSI & PROFIL TAB -->
+    <!-- 4. PENGUJI TOMBOL (TESTER) TAB -->
+    <section id="tab-tester" class="tab-panel">
+      <div class="section-title">
+        <h2>Penguji Keyboard Interaktif</h2>
+        <p>Sentuh tombol virtual pada layout 100% penuh atau sambungkan keyboard fisik untuk memverifikasi pemetaan.</p>
+      </div>
+
+      <!-- Functional Tester Switch -->
+      <div class="glass-card toggle-card" style="border-left: 4px solid var(--accent-cyan);">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Mode Penangkapan Aktif</h3>
+            <p>Sentuh tombol di bawah atau ketik di keyboard fisik Anda.</p>
+          </div>
+          <button id="btn-tester-qwerty-switch" class="switch-btn on">
+            🟢 STATUS: AKTIF
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable QWERTY Canvas Area -->
+      <div class="glass-card arena-card">
+        <div class="arena-header">
+          <h3>Representasi Keyboard QWERTY 100%</h3>
+          <span class="badge-state" style="color: var(--accent-orange); border-color: var(--accent-orange);">Tombol Mapped Servo Oranye</span>
+        </div>
+        
+        <div class="canvas-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; height: auto; min-height: 220px; background-color: #0c1015;">
+          <canvas id="tester-canvas" style="display: block; min-width: 800px; height: 200px;"></canvas>
+        </div>
+        <p class="desc" style="text-align: center; font-size: 10px; margin-top: 5px; color: var(--text-muted);">Seret ke samping jika layar Anda terlalu kecil untuk melihat numpad dan F-row lengkap.</p>
+      </div>
+    </section>
+
+    <!-- 5. PEMANTAUAN & PENDAPATAN (TRACKER) TAB -->
+    <section id="tab-tracker" class="tab-panel">
+      <div class="section-title">
+        <h2>Pemantauan & Pendapatan NESO</h2>
+        <p>Pantau waktu aktif robot dan saldo/perolehan NESO Smart Contract Anda.</p>
+      </div>
+
+      <!-- Wallet Config Card -->
+      <div class="glass-card serial-card" style="border-left: 4px solid var(--accent-purple);">
+        <h3>🦊 MetaMask Wallet Integration</h3>
+        <p class="desc">Masukkan alamat dompet MetaMask EVM Anda untuk memeriksa saldo dan perolehan token NESO Anda via RPC Henesys.</p>
+        
+        <div class="form-row" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+          <label style="font-weight: 600;">Alamat Wallet MetaMask (EVM 0x):</label>
+          <input type="text" id="mobile-wallet-address" class="app-input" style="font-family: monospace;" placeholder="0x...">
+        </div>
+
+        <div class="profile-buttons-grid" style="margin-top: 5px;">
+          <button id="btn-mobile-wallet-save" class="btn-patt btn-add" style="background: var(--accent-purple);">💾 SIMPAN</button>
+          <button id="btn-mobile-wallet-delete" class="btn-patt btn-del">🗑️ HAPUS</button>
+        </div>
+
+        <div class="serial-status-log" style="margin-top: 5px;">
+          <p id="lbl-mobile-rpc-status" style="font-weight: 700; color: var(--accent-orange);">● Memeriksa Koneksi Jaringan...</p>
+        </div>
+      </div>
+
+      <!-- Active Running Session Card -->
+      <div class="glass-card profile-card" style="border-left: 4px solid var(--accent-green);">
+        <h3 id="lbl-mobile-session-status" style="color: var(--accent-red); text-align: center; font-size: 15px; margin-bottom: 5px;">🔴 ROBOT BERHENTI</h3>
+        
+        <!-- Digital Timer Card -->
+        <div class="timer-display-box" style="background-color: #0c1015; border-radius: 12px; border: 1px solid rgba(255,255,255,0.03); padding: 15px; text-align: center; margin-bottom: 5px;">
+          <p style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase;">DURASI SESI INI</p>
+          <h2 id="lbl-mobile-timer" style="font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; color: var(--accent-green);">00:00:00</h2>
+        </div>
+
+        <!-- Balance Earnings details (hidden if wallet not saved) -->
+        <div id="mobile-earn-details" class="hidden" style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+          <div style="display: flex; justify-content: space-between;">
+            <div>
+              <p style="font-size: 9px; font-weight: 700; color: var(--accent-orange);">SALDO METAMASK</p>
+              <h4 id="lbl-mobile-bal-neso" style="font-family: monospace; font-size: 13px; font-weight: 700; margin-top: 2px;">0 NESO</h4>
+              <p id="lbl-mobile-bal-nxpc" style="font-family: monospace; font-size: 10px; color: var(--text-muted); margin-top: 1px;">0.0000 NXPC</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="font-size: 9px; font-weight: 700; color: var(--accent-orange);">PEROLEHAN SESI INI</p>
+              <h4 id="lbl-mobile-earn-neso" style="font-family: monospace; font-size: 13px; font-weight: 700; color: var(--accent-green); margin-top: 2px;">+0 NESO</h4>
+              <p id="lbl-mobile-earn-nxpc" style="font-family: monospace; font-size: 10px; color: var(--accent-green); margin-top: 1px;">+0.0000 NXPC</p>
+            </div>
+          </div>
+        </div>
+
+        <p id="lbl-mobile-wallet-warning" style="font-size: 10px; font-weight: 700; color: var(--accent-orange); text-align: center;" class="">⚠️ Isi alamat wallet MetaMask di atas untuk mengaktifkan pelacakan perolehan saldo NESO.</p>
+      </div>
+    </section>
+
+    <!-- 6. KONEKSI & PROFIL TAB -->
     <section id="tab-profiles" class="tab-panel">
       <div class="section-title">
         <h2>Koneksi Serial & Profil</h2>
@@ -284,12 +377,16 @@
       <span class="nav-icon">📋</span>
       <span class="nav-label">Pola</span>
     </button>
-    <button class="nav-item" data-tab="simulation">
-      <span class="nav-icon">🎮</span>
-      <span class="nav-label">Simulasi</span>
+    <button class="nav-item" data-tab="tester">
+      <span class="nav-icon">⌨️</span>
+      <span class="nav-label">Tester</span>
+    </button>
+    <button class="nav-item" data-tab="tracker">
+      <span class="nav-icon">⏳</span>
+      <span class="nav-label">Pendapatan</span>
     </button>
     <button class="nav-item" data-tab="profiles">
-      <span class="nav-icon">💾</span>
+      <span class="nav-icon">🔌</span>
       <span class="nav-label">Koneksi</span>
     </button>
   </nav>

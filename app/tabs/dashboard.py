@@ -35,19 +35,33 @@ class DashboardTab(ttk.Frame):
         
         ttk.Label(ctrl_card, text="Kirim perintah langsung ke perangkat keras:").pack(anchor="w", pady=(0,15))
 
-        btn_start = ttk.Button(ctrl_card, text="▶ MULAI POLA", width=22, command=self.start_pattern)
+        btn_start = tk.Button(ctrl_card, text="🚀 JALANKAN ROBOT", font=("Helvetica", 10, "bold"),
+                              bg="#2ed573", fg="white", activebackground="#26af5f", activeforeground="white",
+                              relief="flat", bd=0, height=2, cursor="hand2", command=self.start_pattern)
         btn_start.pack(pady=8, fill="x")
+        btn_start.bind("<Enter>", lambda e, b=btn_start: b.config(bg="#26af5f"))
+        btn_start.bind("<Leave>", lambda e, b=btn_start: b.config(bg="#2ed573"))
 
-        btn_stop = ttk.Button(ctrl_card, text="⏹ HENTIKAN POLA", width=22, command=self.stop_pattern)
+        btn_stop = tk.Button(ctrl_card, text="⏹️ HENTIKAN ROBOT", font=("Helvetica", 10, "bold"),
+                             bg="#ffa502", fg="white", activebackground="#ffb142", activeforeground="white",
+                             relief="flat", bd=0, height=2, cursor="hand2", command=self.stop_pattern)
         btn_stop.pack(pady=8, fill="x")
+        btn_stop.bind("<Enter>", lambda e, b=btn_stop: b.config(bg="#ffb142"))
+        btn_stop.bind("<Leave>", lambda e, b=btn_stop: b.config(bg="#ffa502"))
 
-        btn_estop = tk.Button(ctrl_card, text="🚨 DARURAT STOP", font=("Helvetica", 11, "bold"), 
+        btn_estop = tk.Button(ctrl_card, text="🚨 DARURAT STOP (E-STOP)", font=("Helvetica", 11, "bold"), 
                               bg="#ff4757", fg="white", activebackground="#ff6b81", activeforeground="white", 
-                              relief="flat", bd=0, height=2, command=self.estop)
+                              relief="flat", bd=0, height=2, cursor="hand2", command=self.estop)
         btn_estop.pack(pady=15, fill="x")
+        btn_estop.bind("<Enter>", lambda e, b=btn_estop: b.config(bg="#ff6b81"))
+        btn_estop.bind("<Leave>", lambda e, b=btn_estop: b.config(bg="#ff4757"))
         
-        btn_status = ttk.Button(ctrl_card, text="🔄 Cek Status", width=22, command=self.check_status)
+        btn_status = tk.Button(ctrl_card, text="🔄 Perbarui Status", font=("Helvetica", 10, "bold"),
+                               bg="#57606f", fg="white", activebackground="#747d8c", activeforeground="white",
+                               relief="flat", bd=0, height=2, cursor="hand2", command=self.check_status)
         btn_status.pack(pady=8, fill="x")
+        btn_status.bind("<Enter>", lambda e, b=btn_status: b.config(bg="#747d8c"))
+        btn_status.bind("<Leave>", lambda e, b=btn_status: b.config(bg="#57606f"))
 
         # 3. Log Console Card (Right side)
         log_card = ttk.LabelFrame(self, text=" Output Konsol Langsung ", padding=15)
@@ -58,8 +72,12 @@ class DashboardTab(ttk.Frame):
         self.console.pack(fill="both", expand=True)
 
         # Tombol bersihkan log
-        btn_clear = ttk.Button(log_card, text="🗑 Bersihkan Log", command=self.clear_log)
+        btn_clear = tk.Button(log_card, text="🗑️ Bersihkan Log", font=("Helvetica", 9, "bold"),
+                              bg="#57606f", fg="white", activebackground="#747d8c", activeforeground="white",
+                              relief="flat", bd=0, cursor="hand2", command=self.clear_log, padx=15, pady=6)
         btn_clear.pack(anchor="e", pady=(5, 0))
+        btn_clear.bind("<Enter>", lambda e, b=btn_clear: b.config(bg="#747d8c"))
+        btn_clear.bind("<Leave>", lambda e, b=btn_clear: b.config(bg="#57606f"))
         
         # Link shared log box data
         self.update_log_loop()

@@ -46,18 +46,30 @@ class CalibrationTab(ttk.Frame):
             up_scale.grid(row=0, column=1, padx=10, pady=8, sticky="ew")
             
             # Decrement button
-            btn_up_minus = ttk.Button(card, text="-", width=3, command=lambda v=up_val: v.set(max(0, v.get() - 1)))
+            btn_up_minus = tk.Button(card, text="-", font=("Helvetica", 9, "bold"), bg="#57606f", fg="white",
+                                     activebackground="#747d8c", activeforeground="white", relief="flat", bd=0, width=3,
+                                     command=lambda v=up_val: v.set(max(0, v.get() - 1)))
             btn_up_minus.grid(row=0, column=2, padx=2, pady=8)
+            btn_up_minus.bind("<Enter>", lambda e, b=btn_up_minus: b.config(bg="#747d8c"))
+            btn_up_minus.bind("<Leave>", lambda e, b=btn_up_minus: b.config(bg="#57606f"))
             
             up_lbl = ttk.Label(card, text=str(servo.up_angle), width=4, font=("Helvetica", 10, "bold"), foreground="#2ed573", anchor="center")
             up_lbl.grid(row=0, column=3, padx=5, pady=8)
             
             # Increment button
-            btn_up_plus = ttk.Button(card, text="+", width=3, command=lambda v=up_val: v.set(min(180, v.get() + 1)))
+            btn_up_plus = tk.Button(card, text="+", font=("Helvetica", 9, "bold"), bg="#57606f", fg="white",
+                                    activebackground="#747d8c", activeforeground="white", relief="flat", bd=0, width=3,
+                                    command=lambda v=up_val: v.set(min(180, v.get() + 1)))
             btn_up_plus.grid(row=0, column=4, padx=2, pady=8)
+            btn_up_plus.bind("<Enter>", lambda e, b=btn_up_plus: b.config(bg="#747d8c"))
+            btn_up_plus.bind("<Leave>", lambda e, b=btn_up_plus: b.config(bg="#57606f"))
             
-            btn_test_up = ttk.Button(card, text="Posisi UP", command=lambda idx=i, v=up_val: self.test_angle(idx, v.get()))
+            btn_test_up = tk.Button(card, text="Posisi UP", font=("Helvetica", 9, "bold"), bg="#2ed573", fg="white",
+                                    activebackground="#26af5f", activeforeground="white", relief="flat", bd=0, cursor="hand2",
+                                    command=lambda idx=i, v=up_val: self.test_angle(idx, v.get()), padx=10)
             btn_test_up.grid(row=0, column=5, padx=10, pady=8)
+            btn_test_up.bind("<Enter>", lambda e, b=btn_test_up: b.config(bg="#26af5f"))
+            btn_test_up.bind("<Leave>", lambda e, b=btn_test_up: b.config(bg="#2ed573"))
 
             # Link scale motion to update label
             def make_up_callback(lbl, var, s_idx):
@@ -71,27 +83,42 @@ class CalibrationTab(ttk.Frame):
             press_scale.grid(row=1, column=1, padx=10, pady=8, sticky="ew")
             
             # Decrement button
-            btn_press_minus = ttk.Button(card, text="-", width=3, command=lambda v=press_val: v.set(max(0, v.get() - 1)))
+            btn_press_minus = tk.Button(card, text="-", font=("Helvetica", 9, "bold"), bg="#57606f", fg="white",
+                                        activebackground="#747d8c", activeforeground="white", relief="flat", bd=0, width=3,
+                                        command=lambda v=press_val: v.set(max(0, v.get() - 1)))
             btn_press_minus.grid(row=1, column=2, padx=2, pady=8)
+            btn_press_minus.bind("<Enter>", lambda e, b=btn_press_minus: b.config(bg="#747d8c"))
+            btn_press_minus.bind("<Leave>", lambda e, b=btn_press_minus: b.config(bg="#57606f"))
             
             press_lbl = ttk.Label(card, text=str(servo.press_angle), width=4, font=("Helvetica", 10, "bold"), foreground="#ffa502", anchor="center")
             press_lbl.grid(row=1, column=3, padx=5, pady=8)
             
             # Increment button
-            btn_press_plus = ttk.Button(card, text="+", width=3, command=lambda v=press_val: v.set(min(180, v.get() + 1)))
+            btn_press_plus = tk.Button(card, text="+", font=("Helvetica", 9, "bold"), bg="#57606f", fg="white",
+                                       activebackground="#747d8c", activeforeground="white", relief="flat", bd=0, width=3,
+                                       command=lambda v=press_val: v.set(min(180, v.get() + 1)))
             btn_press_plus.grid(row=1, column=4, padx=2, pady=8)
+            btn_press_plus.bind("<Enter>", lambda e, b=btn_press_plus: b.config(bg="#747d8c"))
+            btn_press_plus.bind("<Leave>", lambda e, b=btn_press_plus: b.config(bg="#57606f"))
             
-            btn_test_press = ttk.Button(card, text="Posisi PRESS", command=lambda idx=i, v=press_val: self.test_angle(idx, v.get()))
+            btn_test_press = tk.Button(card, text="Posisi PRESS", font=("Helvetica", 9, "bold"), bg="#ffa502", fg="white",
+                                       activebackground="#ffb142", activeforeground="white", relief="flat", bd=0, cursor="hand2",
+                                       command=lambda idx=i, v=press_val: self.test_angle(idx, v.get()), padx=10)
             btn_test_press.grid(row=1, column=5, padx=10, pady=8)
+            btn_test_press.bind("<Enter>", lambda e, b=btn_test_press: b.config(bg="#ffb142"))
+            btn_test_press.bind("<Leave>", lambda e, b=btn_test_press: b.config(bg="#ffa502"))
 
             def make_press_callback(lbl, var, s_idx):
                 return lambda *args: (lbl.config(text=str(var.get())), self.update_profile_servo_angle(s_idx, "press", var.get()))
             press_val.trace_add("write", make_press_callback(press_lbl, press_val, i))
 
             # --- ROW 2: Wide Test sequence button ---
-            btn_test = ttk.Button(card, text="⚡ JALANKAN UJI TEKAN (PRESS & RELEASE SEQUENCE)", 
-                                  command=lambda idx=i, u=up_val, p=press_val: self.run_test_sequence(idx, u.get(), p.get()))
+            btn_test = tk.Button(card, text="⚡ JALANKAN UJI TEKAN (PRESS & RELEASE SEQUENCE)", font=("Helvetica", 10, "bold"),
+                                 bg="#3867d6", fg="white", activebackground="#4b7bec", activeforeground="white",
+                                 relief="flat", bd=0, cursor="hand2", command=lambda idx=i, u=up_val, p=press_val: self.run_test_sequence(idx, u.get(), p.get()), pady=8)
             btn_test.grid(row=2, column=1, columnspan=5, padx=10, pady=10, sticky="ew")
+            btn_test.bind("<Enter>", lambda e, b=btn_test: b.config(bg="#4b7bec"))
+            btn_test.bind("<Leave>", lambda e, b=btn_test: b.config(bg="#3867d6"))
 
             self.servo_rows.append({
                 "up_val": up_val,

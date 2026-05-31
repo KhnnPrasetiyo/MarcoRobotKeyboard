@@ -244,3 +244,120 @@ class SerialConnectionManager:
                 self.log(f"RX (Simulated): STATE:{states[idx]}")
                 self.update_status(f"Active: {states[idx]} (Simulated)")
                 idx = (idx + 1) % len(states)
+
+    def flash_firmware(self, port, baudrate, hex_path, log_callback=None, completion_callback=None):
+        """
+        Mengunggah firmware (.hex) ke Arduino Nano menggunakan avrdude secara asinkron (dalam thread).
+        """
+        import os
+        import subprocess
+        import time
+
+        # Pastikan koneksi serial ditutup terlebih dahulu agar port COM tidak sibuk
+        if self.connected:
+            self.log("Menutup koneksi serial aktif untuk flashing...")
+            self.disconnect()
+
+        def run_flash():
+            if port == "COM_SIMULATOR":
+                # Jalankan simulasi flashing firmware
+                sim_logs = [
+                    "avrdude.exe: AVR device initialized and ready to accept instructions",
+                    "avrdude.exe: Device signature = 0x1e950f (ATmega328P)",
+                    "avrdude.exe: NOTE: FLASH memory has been specified, an erase cycle will be performed",
+                    "             To preserve contents, use the -D option.",
+                    "avrdude.exe: erasing chip",
+                    "avrdude.exe: reading input file '" + os.path.basename(hex_path) + "'",
+                    "avrdude.exe: writing flash (32768 bytes):",
+                    "Writing | ################################################## | 100% 0.15s",
+                    "avrdude.exe: 32768 bytes of flash written",
+                    "avrdude.exe: verifying flash memory against " + os.path.basename(hex_path) + ":",
+                    "Reading | ################################################## | 100% 0.11s",
+                    "avrdude.exe: 32768 bytes of flash verified",
+                    "",
+                    "avrdude.exe: AVR device flashed successfully (Simulated)!",
+                    "avrdude.exe done.  Thank you."
+                ]
+                for line in sim_logs:
+                    time.sleep(0.3)
+                    if log_callback: log_callback(line)
+                if completion_callback: completion_callback(True, "Firmware simulasi berhasil diunggah!")
+                return
+
+            try:
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                avrdude_exe = os.path.join(base_dir, "app", "bin", "avrdude.exe")
+                avrdude_conf = os.path.join(base_dir, "app", "bin", "avrdude.conf")
+
+                if not os.path.exists(avrdude_exe):
+                    msg = f"Gagal: avrdude.exe tidak ditemukan di {avrdude_exe}"
+                    if log_callback: log_callback(msg)
+                    if completion_callback: completion_callback(False, msg)
+                    return
+
+                if not os.path.exists(avrdude_conf):
+                    msg = f"Gagal: avrdude.conf tidak ditemukan di {avrdude_conf}"
+                    if log_callback: log_callback(msg)
+                    if completion_callback: completion_callback(False, msg)
+                    return
+
+                if not os.path.exists(hex_path):
+                    msg = f"Gagal: Berkas hex tidak ditemukan di {hex_path}"
+                    if log_callback: log_callback(msg)
+                    if completion_callback: completion_callback(False, msg)
+                    return
+
+                # Siapkan perintah avrdude
+                cmd = [
+                    avrdude_exe,
+                    "-C", avrdude_conf,
+                    "-v",
+                    "-p", "m328p",
+                    "-c", "arduino",
+                    "-P", port,
+                    "-b", str(baudrate),
+                    "-D",
+                    "-U", f"flash:w:{hex_path}:i"
+                ]
+
+                msg = f"Menjalankan perintah: {' '.join(cmd)}"
+                if log_callback: log_callback(msg)
+
+                # Jalankan avrdude, gabungkan stderr ke stdout karena avrdude menulis log ke stderr
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                )
+
+                # Baca log keluaran secara real-time
+                while True:
+                    line = process.stdout.readline()
+                    if not line and process.poll() is not None:
+                        break
+                    if line:
+                        line_str = line.strip()
+                        if log_callback:
+                            log_callback(line_str)
+
+                rc = process.poll()
+                if rc == 0:
+                    success_msg = "Firmware berhasil diunggah ke Arduino Nano!"
+                    if log_callback: log_callback(success_msg)
+                    if completion_callback: completion_callback(True, success_msg)
+                else:
+                    fail_msg = f"Gagal mengunggah firmware. Kode keluar avrdude: {rc}"
+                    if log_callback: log_callback(fail_msg)
+                    if completion_callback: completion_callback(False, fail_msg)
+
+            except Exception as e:
+                err_msg = f"Kesalahan sistem saat flashing: {str(e)}"
+                if log_callback: log_callback(err_msg)
+                if completion_callback: completion_callback(False, err_msg)
+
+        # Jalankan di dalam thread terpisah agar UI tidak freeze
+        threading.Thread(target=run_flash, daemon=True).start()
+

@@ -48,6 +48,7 @@ const servosUI = {
 };
 
 // State Variables
+let isCordova = false;
 let serialPort = null;
 let serialWriter = null;
 let serialReader = null;
@@ -55,16 +56,250 @@ let keepReading = false;
 let serialConnected = false;
 let selectedActionIndex = null;
 let testerActive = false;
+let activeTab = "dashboard";
+
+// Listen to Cordova's deviceready event to switch to native mode
+document.addEventListener("deviceready", () => {
+  isCordova = true;
+  logToConsole("Platform native Android (Cordova) terdeteksi!");
+}, false);
+
+// Buffer for incoming Cordova USB Serial data streams
+let cordovaInputBuffer = "";
+
+function handleIncomingCordovaData(str) {
+  cordovaInputBuffer += str;
+  while (cordovaInputBuffer.includes("\n")) {
+    const parts = cordovaInputBuffer.split("\n");
+    const line = parts.shift().trim();
+    cordovaInputBuffer = parts.join("\n");
+    
+    if (line) {
+      logToConsole(`RX: ${line}`);
+      handleIncomingSerialLine(line);
+    }
+  }
+}
 
 // Simulation State Variables
 let simRunning = false;
 let simTimeoutId = null;
 let simStepIndex = 0;
 
+// QWERTY Keyboard Layout & Variables
+const keyboardLayout = [
+  // --- Row 0: F-Row ---
+  { label: "Esc", x: 0.0, y: 0.0, w: 1.0, h: 1.0, keysym: "Escape" },
+  { label: "F1", x: 2.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F1" },
+  { label: "F2", x: 3.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F2" },
+  { label: "F3", x: 4.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F3" },
+  { label: "F4", x: 5.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F4" },
+  { label: "F5", x: 6.5, y: 0.0, w: 1.0, h: 1.0, keysym: "F5" },
+  { label: "F6", x: 7.5, y: 0.0, w: 1.0, h: 1.0, keysym: "F6" },
+  { label: "F7", x: 8.5, y: 0.0, w: 1.0, h: 1.0, keysym: "F7" },
+  { label: "F8", x: 9.5, y: 0.0, w: 1.0, h: 1.0, keysym: "F8" },
+  { label: "F9", x: 11.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F9" },
+  { label: "F10", x: 12.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F10" },
+  { label: "F11", x: 13.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F11" },
+  { label: "F12", x: 14.0, y: 0.0, w: 1.0, h: 1.0, keysym: "F12" },
+  { label: "PrtSc", x: 15.5, y: 0.0, w: 1.0, h: 1.0, keysym: "Print" },
+  { label: "ScrLk", x: 16.5, y: 0.0, w: 1.0, h: 1.0, keysym: "Scroll_Lock" },
+  { label: "Pause", x: 17.5, y: 0.0, w: 1.0, h: 1.0, keysym: "Pause" },
+
+  // --- Row 1 ---
+  { label: "~", x: 0.0, y: 1.3, w: 1.0, h: 1.0, keysym: "grave" },
+  { label: "1", x: 1.0, y: 1.3, w: 1.0, h: 1.0, keysym: "1" },
+  { label: "2", x: 2.0, y: 1.3, w: 1.0, h: 1.0, keysym: "2" },
+  { label: "3", x: 3.0, y: 1.3, w: 1.0, h: 1.0, keysym: "3" },
+  { label: "4", x: 4.0, y: 1.3, w: 1.0, h: 1.0, keysym: "4" },
+  { label: "5", x: 5.0, y: 1.3, w: 1.0, h: 1.0, keysym: "5" },
+  { label: "6", x: 6.0, y: 1.3, w: 1.0, h: 1.0, keysym: "6" },
+  { label: "7", x: 7.0, y: 1.3, w: 1.0, h: 1.0, keysym: "7" },
+  { label: "8", x: 8.0, y: 1.3, w: 1.0, h: 1.0, keysym: "8" },
+  { label: "9", x: 9.0, y: 1.3, w: 1.0, h: 1.0, keysym: "9" },
+  { label: "0", x: 10.0, y: 1.3, w: 1.0, h: 1.0, keysym: "0" },
+  { label: "-", x: 11.0, y: 1.3, w: 1.0, h: 1.0, keysym: "minus" },
+  { label: "=", x: 12.0, y: 1.3, w: 1.0, h: 1.0, keysym: "equal" },
+  { label: "Backspace", x: 13.0, y: 1.3, w: 2.0, h: 1.0, keysym: "BackSpace" },
+  { label: "Ins", x: 15.5, y: 1.3, w: 1.0, h: 1.0, keysym: "Insert" },
+  { label: "Home", x: 16.5, y: 1.3, w: 1.0, h: 1.0, keysym: "Home" },
+  { label: "PgUp", x: 17.5, y: 1.3, w: 1.0, h: 1.0, keysym: "Prior" },
+  { label: "Num", x: 19.0, y: 1.3, w: 1.0, h: 1.0, keysym: "Num_Lock" },
+  { label: "/", x: 20.0, y: 1.3, w: 1.0, h: 1.0, keysym: "KP_Divide" },
+  { label: "*", x: 21.0, y: 1.3, w: 1.0, h: 1.0, keysym: "KP_Multiply" },
+  { label: "-", x: 22.0, y: 1.3, w: 1.0, h: 1.0, keysym: "KP_Subtract" },
+
+  // --- Row 2 ---
+  { label: "Tab", x: 0.0, y: 2.3, w: 1.5, h: 1.0, keysym: "Tab" },
+  { label: "Q", x: 1.5, y: 2.3, w: 1.0, h: 1.0, keysym: "q" },
+  { label: "W", x: 2.5, y: 2.3, w: 1.0, h: 1.0, keysym: "w" },
+  { label: "E", x: 3.5, y: 2.3, w: 1.0, h: 1.0, keysym: "e" },
+  { label: "R", x: 4.5, y: 2.3, w: 1.0, h: 1.0, keysym: "r" },
+  { label: "T", x: 5.5, y: 2.3, w: 1.0, h: 1.0, keysym: "t" },
+  { label: "Y", x: 6.5, y: 2.3, w: 1.0, h: 1.0, keysym: "y" },
+  { label: "U", x: 7.5, y: 2.3, w: 1.0, h: 1.0, keysym: "u" },
+  { label: "I", x: 8.5, y: 2.3, w: 1.0, h: 1.0, keysym: "i" },
+  { label: "O", x: 9.5, y: 2.3, w: 1.0, h: 1.0, keysym: "o" },
+  { label: "P", x: 10.5, y: 2.3, w: 1.0, h: 1.0, keysym: "p" },
+  { label: "[", x: 11.5, y: 2.3, w: 1.0, h: 1.0, keysym: "bracketleft" },
+  { label: "]", x: 12.5, y: 2.3, w: 1.0, h: 1.0, keysym: "bracketright" },
+  { label: "\\", x: 13.5, y: 2.3, w: 1.5, h: 1.0, keysym: "backslash" },
+  { label: "Del", x: 15.5, y: 2.3, w: 1.0, h: 1.0, keysym: "Delete" },
+  { label: "End", x: 16.5, y: 2.3, w: 1.0, h: 1.0, keysym: "End" },
+  { label: "PgDn", x: 17.5, y: 2.3, w: 1.0, h: 1.0, keysym: "Next" },
+  { label: "7", x: 19.0, y: 2.3, w: 1.0, h: 1.0, keysym: "KP_7" },
+  { label: "8", x: 20.0, y: 2.3, w: 1.0, h: 1.0, keysym: "KP_8" },
+  { label: "9", x: 21.0, y: 2.3, w: 1.0, h: 1.0, keysym: "KP_9" },
+  { label: "+", x: 22.0, y: 2.3, w: 1.0, h: 2.0, keysym: "KP_Add" },
+
+  // --- Row 3 ---
+  { label: "Caps", x: 0.0, y: 3.3, w: 1.75, h: 1.0, keysym: "Caps_Lock" },
+  { label: "A", x: 1.75, y: 3.3, w: 1.0, h: 1.0, keysym: "a" },
+  { label: "S", x: 2.75, y: 3.3, w: 1.0, h: 1.0, keysym: "s" },
+  { label: "D", x: 3.75, y: 3.3, w: 1.0, h: 1.0, keysym: "d" },
+  { label: "F", x: 4.75, y: 3.3, w: 1.0, h: 1.0, keysym: "f" },
+  { label: "G", x: 5.75, y: 3.3, w: 1.0, h: 1.0, keysym: "g" },
+  { label: "H", x: 6.75, y: 3.3, w: 1.0, h: 1.0, keysym: "h" },
+  { label: "J", x: 7.75, y: 3.3, w: 1.0, h: 1.0, keysym: "j" },
+  { label: "K", x: 8.75, y: 3.3, w: 1.0, h: 1.0, keysym: "k" },
+  { label: "L", x: 9.75, y: 3.3, w: 1.0, h: 1.0, keysym: "l" },
+  { label: ";", x: 10.75, y: 3.3, w: 1.0, h: 1.0, keysym: "semicolon" },
+  { label: "'", x: 11.75, y: 3.3, w: 1.0, h: 1.0, keysym: "apostrophe" },
+  { label: "Enter", x: 12.75, y: 3.3, w: 2.25, h: 1.0, keysym: "Return" },
+  { label: "4", x: 19.0, y: 3.3, w: 1.0, h: 1.0, keysym: "KP_4" },
+  { label: "5", x: 20.0, y: 3.3, w: 1.0, h: 1.0, keysym: "KP_5" },
+  { label: "6", x: 21.0, y: 3.3, w: 1.0, h: 1.0, keysym: "KP_6" },
+
+  // --- Row 4 ---
+  { label: "Shift L", x: 0.0, y: 4.3, w: 2.25, h: 1.0, keysym: "Shift_L" },
+  { label: "Z", x: 2.25, y: 4.3, w: 1.0, h: 1.0, keysym: "z" },
+  { label: "X", x: 3.25, y: 4.3, w: 1.0, h: 1.0, keysym: "x" },
+  { label: "C", x: 4.25, y: 4.3, w: 1.0, h: 1.0, keysym: "c" },
+  { label: "V", x: 5.25, y: 4.3, w: 1.0, h: 1.0, keysym: "v" },
+  { label: "B", x: 6.25, y: 4.3, w: 1.0, h: 1.0, keysym: "b" },
+  { label: "N", x: 7.25, y: 4.3, w: 1.0, h: 1.0, keysym: "n" },
+  { label: "M", x: 8.25, y: 4.3, w: 1.0, h: 1.0, keysym: "m" },
+  { label: ",", x: 9.25, y: 4.3, w: 1.0, h: 1.0, keysym: "comma" },
+  { label: ".", x: 10.25, y: 4.3, w: 1.0, h: 1.0, keysym: "period" },
+  { label: "/", x: 11.25, y: 4.3, w: 1.0, h: 1.0, keysym: "slash" },
+  { label: "Shift R", x: 12.25, y: 4.3, w: 2.75, h: 1.0, keysym: "Shift_R" },
+  { label: "▲", x: 16.5, y: 4.3, w: 1.0, h: 1.0, keysym: "Up" },
+  { label: "1", x: 19.0, y: 4.3, w: 1.0, h: 1.0, keysym: "KP_1" },
+  { label: "2", x: 20.0, y: 4.3, w: 1.0, h: 1.0, keysym: "KP_2" },
+  { label: "3", x: 21.0, y: 4.3, w: 1.0, h: 1.0, keysym: "KP_3" },
+  { label: "Ent", x: 22.0, y: 4.3, w: 1.0, h: 2.0, keysym: "KP_Enter" },
+
+  // --- Row 5 ---
+  { label: "Ctrl L", x: 0.0, y: 5.3, w: 1.25, h: 1.0, keysym: "Control_L" },
+  { label: "Win", x: 1.25, y: 5.3, w: 1.25, h: 1.0, keysym: "Win_L" },
+  { label: "Alt L", x: 2.5, y: 5.3, w: 1.25, h: 1.0, keysym: "Alt_L" },
+  { label: "Spacebar", x: 3.75, y: 5.3, w: 6.25, h: 1.0, keysym: "space" },
+  { label: "Alt R", x: 10.0, y: 5.3, w: 1.25, h: 1.0, keysym: "Alt_R" },
+  { label: "Win", x: 11.25, y: 5.3, w: 1.25, h: 1.0, keysym: "Win_R" },
+  { label: "Menu", x: 12.5, y: 5.3, w: 1.25, h: 1.0, keysym: "Menu" },
+  { label: "Ctrl R", x: 13.75, y: 5.3, w: 1.25, h: 1.0, keysym: "Control_R" },
+  { label: "◀", x: 15.5, y: 5.3, w: 1.0, h: 1.0, keysym: "Left" },
+  { label: "▼", x: 16.5, y: 5.3, w: 1.0, h: 1.0, keysym: "Down" },
+  { label: "▶", x: 17.5, y: 5.3, w: 1.0, h: 1.0, keysym: "Right" },
+  { label: "0", x: 19.0, y: 5.3, w: 2.0, h: 1.0, keysym: "KP_0" },
+  { label: ".", x: 21.0, y: 5.3, w: 1.0, h: 1.0, keysym: "KP_Decimal" }
+];
+
+const keysymAliases = {
+  "exclam": "1", "at": "2", "numbersign": "3", "dollar": "4", "percent": "5",
+  "asciicircum": "6", "ampersand": "7", "asterisk": "8", "parenleft": "9", "parenright": "0",
+  "underscore": "minus", "plus": "equal", "braceleft": "bracketleft", "braceright": "bracketright",
+  "bar": "backslash", "colon": "semicolon", "quotedbl": "apostrophe", "less": "comma",
+  "greater": "period", "question": "slash", "tilde": "grave", "asciitilde": "grave", "quoteleft": "grave",
+  "KP_Home": "KP_7", "KP_Up": "KP_8", "KP_Prior": "KP_9", "KP_Left": "KP_4", "KP_Begin": "KP_5",
+  "KP_Right": "KP_6", "KP_End": "KP_1", "KP_Down": "KP_2", "KP_Next": "KP_3", "KP_Insert": "KP_0",
+  "KP_Delete": "KP_Decimal"
+};
+
+const keysPressed = {};
+keyboardLayout.forEach(k => { keysPressed[k.keysym] = false; });
+
+const keyToServo = {
+  "Shift_L": 4, "a": 5, "Up": 2, "Left": 0, "Down": 3, "Right": 1
+};
+
+let testerQwertyActive = true;
+
+// Neso & Time Tracker State Variables
+let mobileWalletAddress = localStorage.getItem("mobileWalletAddress") || "";
+let mobileSessionActive = false;
+let mobileSessionStartTime = null;
+let mobileInitialNeso = null;
+let mobileInitialNxpc = null;
+let mobileCurrentNeso = 0.0;
+let mobileCurrentNxpc = 0.0;
+let mobileRpcInterval = null;
+
 /* ==========================================
    WEB SERIAL CONNECTION MANAGEMENT
    ========================================== */
 async function connectSerial() {
+  // --- MODE A: NATIVE ANDROID APK (CORDOVA) VIA USB OTG ---
+  if (isCordova) {
+    if (!window.serial) {
+      logToConsole("Error: Plugin USB Serial native tidak ditemukan!");
+      alert("Error: Driver serial native Android belum terpasang di APK ini.");
+      return;
+    }
+
+    logToConsole("Mencari perangkat USB Serial OTG...");
+    
+    window.serial.requestPermission(
+      function() {
+        logToConsole("Izin akses USB OTG diberikan oleh pengguna.");
+        logToConsole("Membuka port serial USB (115200 bps)...");
+        
+        window.serial.open(
+          {
+            baudRate: 115200,
+            dtr: true // Diperlukan untuk memulai komunikasi Arduino
+          },
+          function() {
+            serialConnected = true;
+            updateConnectionUI(true);
+            logToConsole("Koneksi serial USB OTG aktif pada baud rate 115200.");
+            
+            // Daftarkan callback baca data secara terus-menerus
+            window.serial.registerReadCallback(
+              function(data) {
+                // Mengubah ArrayBuffer menjadi String
+                const view = new Uint8Array(data);
+                let str = "";
+                for (let i = 0; i < view.length; i++) {
+                  str += String.fromCharCode(view[i]);
+                }
+                handleIncomingCordovaData(str);
+              },
+              function(err) {
+                logToConsole(`Error membaca serial USB: ${err}`);
+              }
+            );
+            
+            // Ping untuk verifikasi
+            sendSerialCommand("PING");
+          },
+          function(error) {
+            logToConsole(`Gagal membuka port USB OTG: ${error}`);
+            alert("Gagal menyambung ke USB. Pastikan kabel OTG tercolok kuat ke Arduino Nano!");
+            updateConnectionUI(false);
+          }
+        );
+      },
+      function(error) {
+        logToConsole(`Akses USB ditolak: ${error}`);
+        alert("Izin akses USB ditolak. Aplikasi membutuhkan izin ini untuk mengendalikan Arduino Nano.");
+        updateConnectionUI(false);
+      }
+    );
+    return;
+  }
+
+  // --- MODE B: WEB BROWSER (PWA / WEB SERIAL API) ---
   if (!("serial" in navigator)) {
     logToConsole("Mode Wi-Fi PC Bridge aktif. Semua perintah diteruskan nirkabel melalui PC Anda.");
     alert("Web Serial API tidak didukung pada browser mobile Anda.\n\nAplikasi secara otomatis beralih menggunakan Wi-Fi PC Bridge. Pastikan PC desktop Anda terhubung ke Arduino dan jalankan aplikasi desktop.");
@@ -95,6 +330,29 @@ async function connectSerial() {
 }
 
 async function disconnectSerial() {
+  // --- DISCONNECT NATIVE ---
+  if (isCordova) {
+    if (window.serial) {
+      window.serial.close(
+        function() {
+          logToConsole("Koneksi USB OTG diputus.");
+          serialConnected = false;
+          updateConnectionUI(false);
+        },
+        function(err) {
+          logToConsole(`Error saat menutup serial USB: ${err}`);
+          serialConnected = false;
+          updateConnectionUI(false);
+        }
+      );
+    } else {
+      serialConnected = false;
+      updateConnectionUI(false);
+    }
+    return;
+  }
+
+  // --- DISCONNECT WEB ---
   keepReading = false;
   if (serialReader) {
     try {
@@ -122,6 +380,26 @@ async function disconnectSerial() {
 }
 
 async function sendSerialCommand(cmd) {
+  // --- SEND NATIVE ---
+  if (isCordova) {
+    if (serialConnected && window.serial) {
+      window.serial.write(
+        cmd + "\n",
+        function() {
+          logToConsole(`TX (USB OTG): ${cmd}`);
+        },
+        function(err) {
+          logToConsole(`Error mengirim perintah USB OTG: ${err}`);
+          disconnectSerial();
+        }
+      );
+    } else {
+      logToConsole(`Gagal mengirim (Belum Terhubung): ${cmd}`);
+    }
+    return;
+  }
+
+  // --- SEND WEB / WI-FI ---
   if (serialConnected && serialWriter) {
     try {
       const encoder = new TextEncoder();
@@ -196,7 +474,17 @@ function handleIncomingSerialLine(line) {
     badgeText.innerText = `Aktif: ${state}`;
     badge.className = "status-badge active";
 
-    if (state === "STOPPED" || state === "IDLE" || state === "EMERGENCY_STOP") {
+    if (state === "RUNNING") {
+      if (!mobileSessionActive) {
+        mobileSessionActive = true;
+        mobileSessionStartTime = Date.now();
+        mobileInitialNeso = null;
+        mobileInitialNxpc = null;
+        fetchMobileRpcBalance();
+      }
+    } else if (state === "STOPPED" || state === "IDLE" || state === "EMERGENCY_STOP") {
+      mobileSessionActive = false;
+      mobileSessionStartTime = null;
       stepRow.classList.add("hidden");
     }
   } 
@@ -204,6 +492,14 @@ function handleIncomingSerialLine(line) {
     const stepInfo = line.replace("STEP:", "").trim();
     stepRow.classList.remove("hidden");
     stepText.innerText = stepInfo;
+    
+    if (!mobileSessionActive) {
+      mobileSessionActive = true;
+      mobileSessionStartTime = Date.now();
+      mobileInitialNeso = null;
+      mobileInitialNxpc = null;
+      fetchMobileRpcBalance();
+    }
   }
   else if (line.startsWith("CONFIG_DUMP:")) {
     const hex = line.replace("CONFIG_DUMP:", "").trim();
@@ -244,7 +540,11 @@ function updateConnectionUI(connected) {
     statusText.innerText = "Terhubung";
     statusText.className = "status-val text-green";
     
-    portText.innerHTML = "Status Port: <b>TERBUNGKUS (Serial OTG)</b>";
+    if (isCordova) {
+      portText.innerHTML = "Status Port: <b style='color:#2ed573'>TERHUBUNG (Kabel USB OTG)</b>";
+    } else {
+      portText.innerHTML = "Status Port: <b>TERBUNGKUS (Serial OTG)</b>";
+    }
     
     uploadBtn.classList.remove("disabled");
     uploadBtn.disabled = false;
@@ -915,6 +1215,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.addEventListener("click", (e) => {
       const tabName = btn.getAttribute("data-tab");
+      activeTab = tabName;
       
       // Nav highlight
       document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
@@ -930,6 +1231,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (tabName === "simulation") {
         setTimeout(initSimCanvas, 100);
       }
+      if (tabName === "tester") {
+        setTimeout(initTesterCanvas, 100);
+      }
+      if (tabName === "tracker") {
+        fetchMobileRpcBalance();
+      }
       if (tabName === "profiles") renderValidationTab();
     });
   });
@@ -944,12 +1251,23 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-estop").addEventListener("click", () => {
     sendSerialCommand("ESTOP");
     logToConsole("⚠️ PERINTAH BERHENTI DARURAT DIKIRIM!");
+    mobileSessionActive = false;
+    mobileSessionStartTime = null;
   });
   document.getElementById("btn-start").addEventListener("click", () => {
     sendSerialCommand("START");
+    if (!mobileSessionActive) {
+      mobileSessionActive = true;
+      mobileSessionStartTime = Date.now();
+      mobileInitialNeso = null;
+      mobileInitialNxpc = null;
+      fetchMobileRpcBalance();
+    }
   });
   document.getElementById("btn-stop").addEventListener("click", () => {
     sendSerialCommand("STOP");
+    mobileSessionActive = false;
+    mobileSessionStartTime = null;
   });
 
   // Clear logs button
@@ -1198,13 +1516,406 @@ document.addEventListener("DOMContentLoaded", () => {
     renderValidationTab();
   });
 
+  // 12. QWERTY Tester Event Bindings
+  document.getElementById("btn-tester-qwerty-switch").addEventListener("click", () => {
+    const btn = document.getElementById("btn-tester-qwerty-switch");
+    testerQwertyActive = !testerQwertyActive;
+    if (testerQwertyActive) {
+      btn.innerText = "🟢 STATUS: AKTIF";
+      btn.className = "switch-btn on";
+    } else {
+      btn.innerText = "🔴 STATUS: NONAKTIF";
+      btn.className = "switch-btn off";
+      keyboardLayout.forEach(k => { keysPressed[k.keysym] = false; });
+      drawTesterKeys();
+    }
+  });
+
+  const testerCanvas = document.getElementById("tester-canvas");
+  if (testerCanvas) {
+    testerCanvas.addEventListener("mousedown", (e) => handleTesterCanvasClick(e, true));
+    testerCanvas.addEventListener("mouseup", (e) => handleTesterCanvasClick(e, false));
+    testerCanvas.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      handleTesterCanvasClick(e, true);
+    }, { passive: false });
+    testerCanvas.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      handleTesterCanvasClick(e, false);
+    }, { passive: false });
+  }
+
+  // 13. Neso Tracker Event Bindings
+  document.getElementById("btn-mobile-wallet-save").addEventListener("click", saveMobileWallet);
+  document.getElementById("btn-mobile-wallet-delete").addEventListener("click", deleteMobileWallet);
+  
+  // Populate initial MetaMask address field
+  document.getElementById("mobile-wallet-address").value = mobileWalletAddress;
+
   // Initial runs
   renderCalibrationTab();
   renderPatternTab();
   updateEstimatedDuration();
   renderValidationTab();
 
+  // Setup QWERTY physical keyboard capture
+  setupPhysicalKeyboardListeners();
+
+  // Start Tracker digital clock loops
+  updateMobileTrackerLoop();
+
+  // Periodically query Henesys blockchain balance (every 10s)
+  setInterval(() => {
+    if (mobileWalletAddress) fetchMobileRpcBalance();
+  }, 10000);
+
   // Resize canvas event
-  window.addEventListener("resize", initSimCanvas);
+  window.addEventListener("resize", () => {
+    initSimCanvas();
+    initTesterCanvas();
+  });
   
 });
+
+/* ==========================================
+   PENGUJI TOMBOL QWERTY PROC DRAW ENGINE
+   ========================================== */
+function initTesterCanvas() {
+  const canvas = document.getElementById("tester-canvas");
+  if (!canvas) return;
+  canvas.width = 800;
+  canvas.height = 220;
+  drawTesterKeys();
+}
+
+function drawTesterKeys() {
+  const canvas = document.getElementById("tester-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const cw = canvas.width;
+  const ch = canvas.height;
+
+  ctx.clearRect(0, 0, cw, ch);
+
+  const gap = 3;
+  const paddingX = 10;
+  const paddingY = 10;
+
+  const uWidth = (cw - 2 * paddingX - 22 * gap) / 23.0;
+  const keyH = (ch - 2 * paddingY - 5 * gap) / 6.3;
+
+  keyboardLayout.forEach(k => {
+    const keyX = paddingX + k.x * (uWidth + gap);
+    const keyY = paddingY + k.y * (keyH + gap);
+    const keyW = k.w * uWidth + (k.w - 1.0) * gap;
+    const keyHActual = k.h * keyH + (k.h - 1.0) * gap;
+
+    const isPressed = keysPressed[k.keysym];
+    const isRobotKey = k.keysym in keyToServo;
+
+    if (isPressed) {
+      ctx.fillStyle = "#2ed573";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+    } else if (isRobotKey) {
+      ctx.fillStyle = "#1c2430";
+      ctx.strokeStyle = "#ffa502";
+      ctx.lineWidth = 2.5;
+    } else {
+      ctx.fillStyle = "#151b26";
+      ctx.strokeStyle = "#2f3542";
+      ctx.lineWidth = 1;
+    }
+
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(keyX, keyY, keyW, keyHActual, 4);
+    } else {
+      ctx.rect(keyX, keyY, keyW, keyHActual);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    if (isPressed) ctx.fillStyle = "#ffffff";
+    else if (isRobotKey) ctx.fillStyle = "#ffa502";
+    else ctx.fillStyle = "#a4b0be";
+
+    const fontSz = k.label.length > 5 ? 7 : 9;
+    ctx.font = `bold ${fontSz}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(k.label, keyX + keyW / 2, keyY + keyHActual / 2);
+  });
+}
+
+function handleTesterCanvasClick(e, isPressed) {
+  if (!testerQwertyActive) return;
+  const canvas = document.getElementById("tester-canvas");
+  const rect = canvas.getBoundingClientRect();
+  
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  const clickX = ((clientX - rect.left) / rect.width) * canvas.width;
+  const clickY = ((clientY - rect.top) / rect.height) * canvas.height;
+
+  const gap = 3;
+  const paddingX = 10;
+  const paddingY = 10;
+  const uWidth = (canvas.width - 2 * paddingX - 22 * gap) / 23.0;
+  const keyH = (canvas.height - 2 * paddingY - 5 * gap) / 6.3;
+
+  for (const k of keyboardLayout) {
+    const keyX = paddingX + k.x * (uWidth + gap);
+    const keyY = paddingY + k.y * (keyH + gap);
+    const keyW = k.w * uWidth + (k.w - 1.0) * gap;
+    const keyHActual = k.h * keyH + (k.h - 1.0) * gap;
+
+    if (clickX >= keyX && clickX <= keyX + keyW && clickY >= keyY && clickY <= keyY + keyHActual) {
+      if (keysPressed[k.keysym] !== isPressed) {
+        keysPressed[k.keysym] = isPressed;
+        drawTesterKeys();
+
+        const sIdx = keyToServo[k.keysym];
+        if (sIdx !== undefined) {
+          const sConf = profile.servos[sIdx];
+          if (sConf) {
+            const angle = isPressed ? sConf.press_angle : sConf.up_angle;
+            sendSerialCommand(`TEST_SERVO ${sIdx} ${angle}`);
+          }
+        }
+      }
+      break;
+    }
+  }
+}
+
+function setupPhysicalKeyboardListeners() {
+  window.addEventListener("keydown", (e) => {
+    if (!testerQwertyActive || activeTab !== "tester") return;
+    
+    if (e.key === "Tab" || e.key === " ") {
+      e.preventDefault();
+    }
+
+    let keysym = e.key;
+    if (keysym === "Control") keysym = e.location === 1 ? "Control_L" : "Control_R";
+    if (keysym === "Shift") keysym = e.location === 1 ? "Shift_L" : "Shift_R";
+    if (keysym === "Alt") keysym = e.location === 1 ? "Alt_L" : "Alt_R";
+    if (keysym === "Meta") keysym = "Win_L";
+    if (keysym === "ArrowUp") keysym = "Up";
+    if (keysym === "ArrowDown") keysym = "Down";
+    if (keysym === "ArrowLeft") keysym = "Left";
+    if (keysym === "ArrowRight") keysym = "Right";
+    if (keysym === "Enter") keysym = "Return";
+
+    let targetKey = null;
+    if (keysPressed[keysym] !== undefined) {
+      targetKey = keysym;
+    } else if (keysPressed[keysym.toLowerCase()] !== undefined) {
+      targetKey = keysym.toLowerCase();
+    } else if (keysymAliases[keysym] !== undefined) {
+      targetKey = keysymAliases[keysym];
+    } else if (keysymAliases[keysym.toLowerCase()] !== undefined) {
+      targetKey = keysymAliases[keysym.toLowerCase()];
+    }
+
+    if (targetKey) {
+      if (!keysPressed[targetKey]) {
+        keysPressed[targetKey] = true;
+        drawTesterKeys();
+
+        const sIdx = keyToServo[targetKey];
+        if (sIdx !== undefined) {
+          const sConf = profile.servos[sIdx];
+          if (sConf) {
+            const angle = sConf.press_angle;
+            sendSerialCommand(`TEST_SERVO ${sIdx} ${angle}`);
+          }
+        }
+      }
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    if (!testerQwertyActive || activeTab !== "tester") return;
+
+    let keysym = e.key;
+    if (keysym === "Control") keysym = e.location === 1 ? "Control_L" : "Control_R";
+    if (keysym === "Shift") keysym = e.location === 1 ? "Shift_L" : "Shift_R";
+    if (keysym === "Alt") keysym = e.location === 1 ? "Alt_L" : "Alt_R";
+    if (keysym === "Meta") keysym = "Win_L";
+    if (keysym === "ArrowUp") keysym = "Up";
+    if (keysym === "ArrowDown") keysym = "Down";
+    if (keysym === "ArrowLeft") keysym = "Left";
+    if (keysym === "ArrowRight") keysym = "Right";
+    if (keysym === "Enter") keysym = "Return";
+
+    const releasedKeys = [];
+    if (keysPressed[keysym] !== undefined) releasedKeys.push(keysym);
+    else if (keysPressed[keysym.toLowerCase()] !== undefined) releasedKeys.push(keysym.toLowerCase());
+    else if (keysymAliases[keysym] !== undefined) releasedKeys.push(keysymAliases[keysym]);
+    else if (keysymAliases[keysym.toLowerCase()] !== undefined) releasedKeys.push(keysymAliases[keysym.toLowerCase()]);
+
+    if (keysym.includes("Shift")) {
+      releasedKeys.push("Shift_L");
+      releasedKeys.push("Shift_R");
+    }
+
+    releasedKeys.forEach(targetKey => {
+      if (keysPressed[targetKey]) {
+        keysPressed[targetKey] = false;
+        drawTesterKeys();
+
+        const sIdx = keyToServo[targetKey];
+        if (sIdx !== undefined) {
+          const sConf = profile.servos[sIdx];
+          if (sConf) {
+            const angle = sConf.up_angle;
+            sendSerialCommand(`TEST_SERVO ${sIdx} ${angle}`);
+          }
+        }
+      }
+    });
+  });
+}
+
+/* ==========================================
+   PEMANTAUAN & PENDAPATAN TRACKER MODULE
+   ========================================== */
+function saveMobileWallet() {
+  const addr = document.getElementById("mobile-wallet-address").value.trim();
+  if (addr && (!addr.startsWith("0x") || addr.length !== 42)) {
+    alert("Alamat wallet MetaMask tidak valid!\nAlamat harus diawali dengan '0x' dan memiliki panjang 42 karakter.");
+    return;
+  }
+  mobileWalletAddress = addr;
+  localStorage.setItem("mobileWalletAddress", addr);
+  
+  if (addr) {
+    document.getElementById("mobile-earn-details").classList.remove("hidden");
+    document.getElementById("lbl-mobile-wallet-warning").classList.add("hidden");
+    logToConsole(`Metamask Wallet disimpan: ${addr.slice(0, 6)}...${addr.slice(-4)}`);
+    alert("Alamat wallet MetaMask disimpan!");
+  } else {
+    document.getElementById("mobile-earn-details").classList.add("hidden");
+    document.getElementById("lbl-mobile-wallet-warning").classList.remove("hidden");
+    logToConsole("Alamat wallet MetaMask dihapus.");
+    alert("Alamat wallet MetaMask dihapus!");
+  }
+  
+  mobileInitialNeso = null;
+  mobileInitialNxpc = null;
+  fetchMobileRpcBalance();
+}
+
+function deleteMobileWallet() {
+  document.getElementById("mobile-wallet-address").value = "";
+  saveMobileWallet();
+}
+
+async function fetchMobileRpcBalance() {
+  if (!mobileWalletAddress) return;
+  const callData = "0x70a08231" + mobileWalletAddress.toLowerCase().replace("0x", "").padStart(64, "0");
+  const payload = {
+    jsonrpc: "2.0",
+    method: "eth_call",
+    params: [
+      {
+        to: "0x07E49Ad54FcD23F6e7B911C2068F0148d1827c08",
+        data: callData
+      },
+      "latest"
+    ],
+    id: 1
+  };
+
+  const urls = ["https://henesys-rpc.msu.io", "https://subnets.avax.network/henesys/"];
+  let success = false;
+  let errorMsg = "";
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        if (resData.result) {
+          const hex = resData.result.replace("0x", "") || "0";
+          const wei = BigInt("0x" + hex);
+          const neso = Number(wei) / 1e18;
+          const nxpc = neso / 100000.0;
+
+          mobileCurrentNeso = neso;
+          mobileCurrentNxpc = nxpc;
+          success = true;
+
+          if (mobileSessionActive && mobileInitialNeso === null) {
+            mobileInitialNeso = neso;
+            mobileInitialNxpc = nxpc;
+          }
+          break;
+        } else {
+          errorMsg = resData.error ? resData.error.message : "RPC Error";
+        }
+      } else {
+        errorMsg = `HTTP ${response.status}`;
+      }
+    } catch (err) {
+      errorMsg = err.message;
+    }
+  }
+
+  const statusLbl = document.getElementById("lbl-mobile-rpc-status");
+  if (success) {
+    statusLbl.innerText = "● Terhubung ke Henesys Network";
+    statusLbl.style.color = "var(--accent-green)";
+
+    document.getElementById("lbl-mobile-bal-neso").innerText = `${mobileCurrentNeso.toLocaleString(undefined, { maximumFractionDigits: 0 })} NESO`;
+    document.getElementById("lbl-mobile-bal-nxpc").innerText = `${mobileCurrentNxpc.toFixed(4)} NXPC`;
+
+    if (mobileSessionActive && mobileInitialNeso !== null) {
+      const earnedNeso = Math.max(0, mobileCurrentNeso - mobileInitialNeso);
+      const earnedNxpc = Math.max(0.0, mobileCurrentNxpc - mobileInitialNxpc);
+      document.getElementById("lbl-mobile-earn-neso").innerText = `+${earnedNeso.toLocaleString(undefined, { maximumFractionDigits: 0 })} NESO`;
+      document.getElementById("lbl-mobile-earn-nxpc").innerText = `+${earnedNxpc.toFixed(4)} NXPC`;
+    } else {
+      document.getElementById("lbl-mobile-earn-neso").innerText = "+0 NESO";
+      document.getElementById("lbl-mobile-earn-nxpc").innerText = "+0.0000 NXPC";
+    }
+  } else {
+    statusLbl.innerText = `● Gangguan Koneksi Jaringan (${errorMsg})`;
+    statusLbl.style.color = "var(--accent-red)";
+  }
+}
+
+function updateMobileTrackerLoop() {
+  if (mobileSessionActive) {
+    const elapsed = Date.now() - mobileSessionStartTime;
+    const hrs = Math.floor(elapsed / 3600000);
+    const mins = Math.floor((elapsed % 3600000) / 60000);
+    const secs = Math.floor((elapsed % 60000) / 1000);
+    
+    document.getElementById("lbl-mobile-timer").innerText = 
+      `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    document.getElementById("lbl-mobile-session-status").innerText = "🟢 ROBOT BERJALAN";
+    document.getElementById("lbl-mobile-session-status").style.color = "var(--accent-green)";
+  } else {
+    document.getElementById("lbl-mobile-timer").innerText = "00:00:00";
+    document.getElementById("lbl-mobile-session-status").innerText = "🔴 ROBOT BERHENTI";
+    document.getElementById("lbl-mobile-session-status").style.color = "var(--accent-red)";
+  }
+
+  if (mobileWalletAddress) {
+    document.getElementById("mobile-earn-details").classList.remove("hidden");
+    document.getElementById("lbl-mobile-wallet-warning").classList.add("hidden");
+  } else {
+    document.getElementById("mobile-earn-details").classList.add("hidden");
+    document.getElementById("lbl-mobile-wallet-warning").classList.remove("hidden");
+  }
+
+  setTimeout(updateMobileTrackerLoop, 1000);
+}

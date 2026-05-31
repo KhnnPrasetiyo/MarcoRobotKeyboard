@@ -15,6 +15,7 @@ from app.tabs.validator import ValidatorTab
 from app.tabs.tester import KeyboardTesterTab
 from app.tabs.profiles import ProfileManagerTab
 from app.tabs.serial_manager import SerialManagerTab
+from app.tabs.neso_tracker import NesoTrackerTab
 
 class ModernApp(tk.Tk):
     def __init__(self):
@@ -51,6 +52,8 @@ class ModernApp(tk.Tk):
         
         # Models and Communication Shared Instances
         self.profile = RobotProfile()
+        self.robot_running = False
+        self.robot_start_time = None
         self.log_queue = queue.Queue()
         self.connection = SerialConnectionManager(
             log_callback=self.connection_logger,
@@ -84,6 +87,7 @@ class ModernApp(tk.Tk):
         # Dictionary describing Tab mappings
         self.tab_info = [
             ("Dashboard", DashboardTab),
+            ("Pemantauan & Pendapatan", NesoTrackerTab),
             ("Kalibrasi Servo", CalibrationTab),
             ("Pembuat Pola", PatternBuilderTab),
             ("Pengaturan Loop", LoopSettingsTab),
@@ -115,6 +119,11 @@ class ModernApp(tk.Tk):
                             bg="#1e272e", fg="#a4b0be", activebackground="#2f3542", activeforeground="#ffffff",
                             relief="flat", bd=0, height=2, command=lambda n=name: self.show_page(n))
             btn.pack(fill="x", padx=10, pady=2)
+            
+            # Hover bindings
+            btn.bind("<Enter>", lambda e, b=btn: self.on_nav_enter(b))
+            btn.bind("<Leave>", lambda e, b=btn: self.on_nav_leave(b))
+            
             self.nav_buttons[name] = btn
 
         # Footer connection label on sidebar
@@ -143,6 +152,14 @@ class ModernApp(tk.Tk):
         # Specific tab reloads if necessary
         if hasattr(self.pages[name], "reload_table"):
             self.pages[name].reload_table()
+
+    def on_nav_enter(self, btn):
+        if btn["bg"] != "#3867d6":
+            btn.config(bg="#2f3542", fg="#ffffff")
+
+    def on_nav_leave(self, btn):
+        if btn["bg"] != "#3867d6":
+            btn.config(bg="#1e272e", fg="#a4b0be")
 
     def reload_all_tabs(self):
         # Sync tab UI states with current RobotProfile data after updates/loads
@@ -175,6 +192,16 @@ class ModernApp(tk.Tk):
             elif "Active" in status:
                 indonesian_status = status.replace("Active:", "Aktif:")
                 self.lbl_conn_status.config(text=f"● {indonesian_status}", fg="#ffa502")
+
+        # Track robot running state for time and earnings tracker
+        import time
+        if "RUNNING" in status or status.startswith("STEP:"):
+            if not self.robot_running:
+                self.robot_running = True
+                self.robot_start_time = time.time()
+        elif any(x in status for x in ["STOPPED", "IDLE", "EMERGENCY", "Disconnected"]):
+            self.robot_running = False
+            self.robot_start_time = None
 
         if "Dashboard" in self.pages:
             self.pages["Dashboard"].update_status_label(status)

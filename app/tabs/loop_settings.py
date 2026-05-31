@@ -7,14 +7,19 @@ class LoopSettingsTab(ttk.Frame):
         self.profile = profile
         self.connection = connection
 
+        # Konfigurasi grid pembungkus untuk memusatkan kartu secara estetis
         self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)  # Kolom kartu tetap
+        self.columnconfigure(2, weight=1)
         self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)     # Baris kartu tetap
+        self.rowconfigure(2, weight=1)
 
-        card = ttk.LabelFrame(self, text=" Pengaturan Perulangan Pola ", padding=20)
-        card.grid(row=0, column=0, padx=40, pady=40, sticky="n")
+        card = ttk.LabelFrame(self, text=" Pengaturan Perulangan Pola ", padding=30)
+        card.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
 
         # Loop Mode RadioButtons
-        ttk.Label(card, text="Mode Perulangan:", font=("Helvetica", 10, "bold")).grid(row=0, column=0, sticky="w", pady=10)
+        ttk.Label(card, text="Mode Perulangan:", font=("Helvetica", 11, "bold")).grid(row=0, column=0, sticky="w", pady=10, padx=10)
         
         self.mode_var = tk.StringVar(value=self.profile.loop_mode)
         
@@ -27,7 +32,7 @@ class LoopSettingsTab(ttk.Frame):
         rb_cust.grid(row=1, column=1, columnspan=2, sticky="w", padx=10, pady=10)
 
         # Custom Count Entry
-        self.lbl_count = ttk.Label(card, text="Jumlah Perulangan:")
+        self.lbl_count = ttk.Label(card, text="Jumlah Perulangan:", font=("Helvetica", 10))
         self.lbl_count.grid(row=2, column=1, sticky="e", padx=(20, 5), pady=10)
         
         self.count_var = tk.IntVar(value=self.profile.loop_count)
@@ -37,7 +42,7 @@ class LoopSettingsTab(ttk.Frame):
         self.count_spin.bind("<Return>", self.on_count_change)
 
         # Auto Start Config
-        ttk.Label(card, text="Opsi Mulai Saat Booting:", font=("Helvetica", 10, "bold")).grid(row=3, column=0, sticky="w", pady=15)
+        ttk.Label(card, text="Opsi Mulai Saat Booting:", font=("Helvetica", 11, "bold")).grid(row=3, column=0, sticky="w", pady=15, padx=10)
         
         self.autostart_var = tk.BooleanVar(value=self.profile.auto_start)
         self.chk_autostart = tk.Checkbutton(card, text="Mulai otomatis (Auto Start) saat Arduino dinyalakan", 

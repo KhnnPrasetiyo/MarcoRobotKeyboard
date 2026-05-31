@@ -7,21 +7,26 @@ class RandomDelaySettingsTab(ttk.Frame):
         self.profile = profile
         self.connection = connection
 
+        # Konfigurasi grid pembungkus untuk memusatkan kartu secara estetis
         self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)  # Kolom kartu tetap
+        self.columnconfigure(2, weight=1)
         self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)     # Baris kartu tetap
+        self.rowconfigure(2, weight=1)
 
-        card = ttk.LabelFrame(self, text=" Pengaturan Jeda Aksi Acak ", padding=20)
-        card.grid(row=0, column=0, padx=40, pady=40, sticky="n")
+        card = ttk.LabelFrame(self, text=" Pengaturan Jeda Aksi Acak ", padding=30)
+        card.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
 
         # Enable checkbox
         self.enabled_var = tk.BooleanVar(value=self.profile.random_delay_enabled)
         self.chk_enabled = tk.Checkbutton(card, text="Aktifkan jeda acak di antara aksi", 
                                            variable=self.enabled_var, command=self.on_toggle_enabled,
-                                           bg="#2f3542", fg="#ffffff", selectcolor="#1e272e", activebackground="#2f3542", activeforeground="#ffffff", font=("Helvetica", 10))
-        self.chk_enabled.grid(row=0, column=0, columnspan=3, sticky="w", pady=15)
+                                           bg="#2f3542", fg="#ffffff", selectcolor="#1e272e", activebackground="#2f3542", activeforeground="#ffffff", font=("Helvetica", 11, "bold"))
+        self.chk_enabled.grid(row=0, column=0, columnspan=3, sticky="w", pady=15, padx=10)
 
         # Min delay
-        self.lbl_min = ttk.Label(card, text="Jeda Minimum (ms):")
+        self.lbl_min = ttk.Label(card, text="Jeda Minimum (ms):", font=("Helvetica", 10))
         self.lbl_min.grid(row=1, column=0, sticky="e", padx=10, pady=10)
         self.min_var = tk.IntVar(value=self.profile.random_delay_min)
         self.spin_min = ttk.Spinbox(card, from_=0, to=60000, increment=100, textvariable=self.min_var, width=15)
@@ -30,7 +35,7 @@ class RandomDelaySettingsTab(ttk.Frame):
         self.spin_min.bind("<Return>", self.on_values_change)
 
         # Max delay
-        self.lbl_max = ttk.Label(card, text="Jeda Maksimum (ms):")
+        self.lbl_max = ttk.Label(card, text="Jeda Maksimum (ms):", font=("Helvetica", 10))
         self.lbl_max.grid(row=2, column=0, sticky="e", padx=10, pady=10)
         self.max_var = tk.IntVar(value=self.profile.random_delay_max)
         self.spin_max = ttk.Spinbox(card, from_=0, to=60000, increment=100, textvariable=self.max_var, width=15)
