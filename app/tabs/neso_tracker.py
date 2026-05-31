@@ -13,7 +13,8 @@ class NesoTrackerTab(ttk.Frame):
         self.profile = profile
         self.connection = connection
 
-        self.wallet_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "wallet_settings.json")
+        # Save settings file in the current working directory to prevent data loss in PyInstaller compiled single-file executables
+        self.wallet_file = os.path.join(os.getcwd(), "wallet_settings.json")
         self.wallet_address = tk.StringVar(value=self.load_wallet_address())
 
         # Session tracking state variables
