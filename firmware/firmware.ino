@@ -9,7 +9,6 @@
  *   - D11 = STATUS LED (Arduino), D12 = SERVO LED (Active movement indicator)
  */
 
-#include <Arduino.h>
 #include <Servo.h>
 #include <EEPROM.h>
 
