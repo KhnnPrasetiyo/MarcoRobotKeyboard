@@ -39,8 +39,15 @@ jobs:
       - name: Add Android Platform and Build APK
         run: |
           cd mobile-cordova
-          cordova platform add android
-          cordova build android --debug
+          echo "=== Diagnostic Info ==="
+          node -v
+          npm -v
+          echo "=== Installing NPM dependencies ==="
+          npm install
+          echo "=== Adding Android Platform ==="
+          cordova platform add android --verbose
+          echo "=== Building Android APK ==="
+          cordova build android --debug --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
