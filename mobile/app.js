@@ -1449,17 +1449,47 @@ document.addEventListener("DOMContentLoaded", () => {
   // 11. Profiles JSON file load & save
   document.getElementById("btn-profile-save").addEventListener("click", () => {
     const jsonStr = JSON.stringify(profile, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
     
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "robot_profile.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    logToConsole("Profil berhasil diekspor ke file robot_profile.json.");
+    // Copy to clipboard fallback (guaranteed to work everywhere, including Cordova)
+    let copied = false;
+    try {
+      const el = document.createElement('textarea');
+      el.value = jsonStr;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      copied = true;
+    } catch (err) {
+      console.warn("Gagal menyalin otomatis:", err);
+    }
+
+    try {
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "robot_profile.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      logToConsole("Profil berhasil diekspor ke file robot_profile.json.");
+      
+      if (copied) {
+        alert("Konfigurasi profil berhasil diekspor ke file!\n\n(Salinan teks JSON juga otomatis disimpan di clipboard Anda sebagai cadangan).");
+      } else {
+        alert("Konfigurasi profil berhasil diekspor ke file!");
+      }
+    } catch (e) {
+      logToConsole(`Gagal mengunduh berkas: ${e.message}`);
+      if (copied) {
+        alert("Unduhan berkas dinonaktifkan oleh lingkungan HP/APK.\n\nTenang! Konfigurasi profil Anda telah berhasil DISALIN ke clipboard Anda secara otomatis. Silakan tempelkan (paste) di aplikasi catatan Anda.");
+      } else {
+        alert("Gagal mengunduh berkas profil di browser/APK ini.");
+      }
+    }
   });
 
   document.getElementById("btn-profile-load").addEventListener("click", () => {
@@ -1511,6 +1541,109 @@ document.addEventListener("DOMContentLoaded", () => {
     
     input.click();
   });
+
+  // --- LOCAL SLOTS STORAGE HANDLERS ---
+  function updateSlotUI(slotNum) {
+    const info = localStorage.getItem(`robot_profile_slot_info_${slotNum}`);
+    const lbl = document.getElementById(`lbl-slot-${slotNum}`);
+    const btnLoad = document.getElementById(`btn-slot-load-${slotNum}`);
+    
+    if (info) {
+      if (lbl) {
+        lbl.innerText = `Slot ${slotNum}: ${info}`;
+        lbl.style.color = "var(--accent-green)";
+      }
+      if (btnLoad) {
+        btnLoad.disabled = false;
+        btnLoad.classList.remove("disabled");
+      }
+    } else {
+      if (lbl) {
+        lbl.innerText = `Slot ${slotNum}: Kosong`;
+        lbl.style.color = "var(--text-muted)";
+      }
+      if (btnLoad) {
+        btnLoad.disabled = true;
+        btnLoad.classList.add("disabled");
+      }
+    }
+  }
+
+  function saveProfileToSlot(slotNum) {
+    try {
+      const jsonStr = JSON.stringify(profile);
+      localStorage.setItem(`robot_profile_slot_${slotNum}`, jsonStr);
+      
+      const timestamp = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
+      const infoText = `Aktif (${timestamp})`;
+      localStorage.setItem(`robot_profile_slot_info_${slotNum}`, infoText);
+      
+      updateSlotUI(slotNum);
+      logToConsole(`Profil disimpan ke Slot ${slotNum} HP.`);
+      alert(`Profil berhasil disimpan ke Slot ${slotNum}!`);
+    } catch (err) {
+      alert(`Gagal menyimpan ke Slot ${slotNum}: ${err.message}`);
+    }
+  }
+
+  function loadProfileFromSlot(slotNum) {
+    try {
+      const jsonStr = localStorage.getItem(`robot_profile_slot_${slotNum}`);
+      if (!jsonStr) return;
+      
+      const loaded = JSON.parse(jsonStr);
+      
+      // Re-populate profile active values
+      profile.loop_mode = loaded.loop_mode || "INFINITY";
+      profile.loop_count = loaded.loop_count || 1;
+      profile.random_delay_enabled = loaded.random_delay_enabled || false;
+      profile.random_delay_min = loaded.random_delay_min || 100;
+      profile.random_delay_max = loaded.random_delay_max || 1000;
+      profile.auto_start = loaded.auto_start || false;
+      profile.pattern = loaded.pattern || [];
+      
+      if (loaded.servos) {
+        loaded.servos.forEach((s, idx) => {
+          if (profile.servos[idx]) {
+            profile.servos[idx].up_angle = s.up_angle;
+            profile.servos[idx].press_angle = s.press_angle;
+          }
+        });
+      }
+
+      // Reload UI views
+      renderCalibrationTab();
+      renderPatternTab();
+      updateEstimatedDuration();
+      renderValidationTab();
+      
+      logToConsole(`Profil berhasil dimuat dari Slot ${slotNum} HP.`);
+      alert(`Profil sukses dimuat dari Slot ${slotNum}!`);
+    } catch (err) {
+      alert(`Gagal memuat Slot ${slotNum}: ${err.message}`);
+    }
+  }
+
+  // Bind Slot Save Buttons
+  const sBtnSave1 = document.getElementById("btn-slot-save-1");
+  const sBtnSave2 = document.getElementById("btn-slot-save-2");
+  const sBtnSave3 = document.getElementById("btn-slot-save-3");
+  if (sBtnSave1) sBtnSave1.addEventListener("click", () => saveProfileToSlot(1));
+  if (sBtnSave2) sBtnSave2.addEventListener("click", () => saveProfileToSlot(2));
+  if (sBtnSave3) sBtnSave3.addEventListener("click", () => saveProfileToSlot(3));
+
+  // Bind Slot Load Buttons
+  const sBtnLoad1 = document.getElementById("btn-slot-load-1");
+  const sBtnLoad2 = document.getElementById("btn-slot-load-2");
+  const sBtnLoad3 = document.getElementById("btn-slot-load-3");
+  if (sBtnLoad1) sBtnLoad1.addEventListener("click", () => loadProfileFromSlot(1));
+  if (sBtnLoad2) sBtnLoad2.addEventListener("click", () => loadProfileFromSlot(2));
+  if (sBtnLoad3) sBtnLoad3.addEventListener("click", () => loadProfileFromSlot(3));
+
+  // Initial slot UI refreshes
+  updateSlotUI(1);
+  updateSlotUI(2);
+  updateSlotUI(3);
 
   document.getElementById("btn-refresh-validation").addEventListener("click", () => {
     renderValidationTab();
