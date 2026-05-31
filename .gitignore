@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C++ / Arduino builds
+build/
+*.hex
+*.elf
+
+# Mobile Cordova temporary platforms/plugins
+mobile-cordova/platforms/
+mobile-cordova/plugins/
+mobile-cordova/node_modules/
+
+# Local configuration / workspace
+.vscode/
+.idea/
+.gemini/
+*.zip
