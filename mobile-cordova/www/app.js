@@ -73,7 +73,7 @@ function handleIncomingCordovaData(str) {
     const parts = cordovaInputBuffer.split("\n");
     const line = parts.shift().trim();
     cordovaInputBuffer = parts.join("\n");
-    
+
     if (line) {
       logToConsole(`RX: ${line}`);
       handleIncomingSerialLine(line);
@@ -248,25 +248,25 @@ async function connectSerial() {
     }
 
     logToConsole("Mencari perangkat USB Serial OTG...");
-    
+
     window.serial.requestPermission(
-      function() {
+      function () {
         logToConsole("Izin akses USB OTG diberikan oleh pengguna.");
         logToConsole("Membuka port serial USB (115200 bps)...");
-        
+
         window.serial.open(
           {
-            baudRate: 115200,
+            baudRate: 9600,
             dtr: true // Diperlukan untuk memulai komunikasi Arduino
           },
-          function() {
+          function () {
             serialConnected = true;
             updateConnectionUI(true);
             logToConsole("Koneksi serial USB OTG aktif pada baud rate 115200.");
-            
+
             // Daftarkan callback baca data secara terus-menerus
             window.serial.registerReadCallback(
-              function(data) {
+              function (data) {
                 // Mengubah ArrayBuffer menjadi String
                 const view = new Uint8Array(data);
                 let str = "";
@@ -275,22 +275,22 @@ async function connectSerial() {
                 }
                 handleIncomingCordovaData(str);
               },
-              function(err) {
+              function (err) {
                 logToConsole(`Error membaca serial USB: ${err}`);
               }
             );
-            
+
             // Ping untuk verifikasi
             sendSerialCommand("PING");
           },
-          function(error) {
+          function (error) {
             logToConsole(`Gagal membuka port USB OTG: ${error}`);
             alert("Gagal menyambung ke USB. Pastikan kabel OTG tercolok kuat ke Arduino Nano!");
             updateConnectionUI(false);
           }
         );
       },
-      function(error) {
+      function (error) {
         logToConsole(`Akses USB ditolak: ${error}`);
         alert("Izin akses USB ditolak. Aplikasi membutuhkan izin ini untuk mengendalikan Arduino Nano.");
         updateConnectionUI(false);
@@ -308,19 +308,19 @@ async function connectSerial() {
 
   try {
     serialPort = await navigator.serial.requestPort();
-    await serialPort.open({ baudRate: 115200 });
-    
+    await serialPort.open({ baudRate: 9600 });
+
     serialConnected = true;
     serialWriter = serialPort.writable.getWriter();
-    
+
     // UI Updates
     updateConnectionUI(true);
     logToConsole("Koneksi serial terhubung pada baud rate 115200.");
-    
+
     // Start Reading loop
     keepReading = true;
     readSerialLoop();
-    
+
     // Ping to verify
     sendSerialCommand("PING");
   } catch (error) {
@@ -334,12 +334,12 @@ async function disconnectSerial() {
   if (isCordova) {
     if (window.serial) {
       window.serial.close(
-        function() {
+        function () {
           logToConsole("Koneksi USB OTG diputus.");
           serialConnected = false;
           updateConnectionUI(false);
         },
-        function(err) {
+        function (err) {
           logToConsole(`Error saat menutup serial USB: ${err}`);
           serialConnected = false;
           updateConnectionUI(false);
@@ -357,24 +357,24 @@ async function disconnectSerial() {
   if (serialReader) {
     try {
       await serialReader.cancel();
-    } catch (e) {}
+    } catch (e) { }
   }
   if (serialWriter) {
     try {
       serialWriter.releaseLock();
-    } catch (e) {}
+    } catch (e) { }
   }
   if (serialPort) {
     try {
       await serialPort.close();
-    } catch (e) {}
+    } catch (e) { }
   }
-  
+
   serialConnected = false;
   serialPort = null;
   serialWriter = null;
   serialReader = null;
-  
+
   updateConnectionUI(false);
   logToConsole("Koneksi serial terputus.");
 }
@@ -385,10 +385,10 @@ async function sendSerialCommand(cmd) {
     if (serialConnected && window.serial) {
       window.serial.write(
         cmd + "\n",
-        function() {
+        function () {
           logToConsole(`TX (USB OTG): ${cmd}`);
         },
-        function(err) {
+        function (err) {
           logToConsole(`Error mengirim perintah USB OTG: ${err}`);
           disconnectSerial();
         }
@@ -428,20 +428,20 @@ async function sendSerialCommand(cmd) {
 async function readSerialLoop() {
   const decoder = new TextDecoder();
   let inputBuffer = "";
-  
+
   while (serialPort && serialPort.readable && keepReading) {
     try {
       serialReader = serialPort.readable.getReader();
       while (keepReading) {
         const { value, done } = await serialReader.read();
         if (done) break;
-        
+
         inputBuffer += decoder.decode(value);
         while (inputBuffer.includes("\n")) {
           const parts = inputBuffer.split("\n");
           const line = parts.shift().trim();
           inputBuffer = parts.join("\n");
-          
+
           if (line) {
             logToConsole(`RX: ${line}`);
             handleIncomingSerialLine(line);
@@ -470,7 +470,7 @@ function handleIncomingSerialLine(line) {
     const state = line.replace("STATE:", "").trim();
     statusText.innerText = `Aktif: ${state}`;
     statusText.className = "status-val text-orange";
-    
+
     badgeText.innerText = `Aktif: ${state}`;
     badge.className = "status-badge active";
 
@@ -487,12 +487,12 @@ function handleIncomingSerialLine(line) {
       mobileSessionStartTime = null;
       stepRow.classList.add("hidden");
     }
-  } 
+  }
   else if (line.startsWith("STEP:")) {
     const stepInfo = line.replace("STEP:", "").trim();
     stepRow.classList.remove("hidden");
     stepText.innerText = stepInfo;
-    
+
     if (!mobileSessionActive) {
       mobileSessionActive = true;
       mobileSessionStartTime = Date.now();
@@ -506,13 +506,13 @@ function handleIncomingSerialLine(line) {
     try {
       parseConfigHex(hex, profile);
       logToConsole(`Konfigurasi dibaca sukses: ${profile.pattern.length} aksi ditemukan.`);
-      
+
       // Reload UI views
       renderCalibrationTab();
       renderPatternTab();
       updateEstimatedDuration();
       renderValidationTab();
-      
+
       alert(`Konfigurasi sukses dibaca dari Arduino!\n\n• ${profile.pattern.length} aksi ditemukan\n• Mode: ${profile.loop_mode}`);
     } catch (e) {
       logToConsole(`Error parsing hex: ${e.message}`);
@@ -526,26 +526,26 @@ function updateConnectionUI(connected) {
   const badgeText = document.getElementById("badge-text");
   const statusText = document.getElementById("system-status-text");
   const portText = document.getElementById("lbl-serial-com");
-  
+
   const uploadBtn = document.getElementById("btn-eeprom-upload");
   const readBtn = document.getElementById("btn-eeprom-read");
 
   if (connected) {
     btn.innerText = "🔌 PUTUSKAN SAMBUNGAN ARDUINO";
     btn.className = "btn-ctrl btn-stop";
-    
+
     badge.className = "status-badge connected";
     badgeText.innerText = "Terhubung";
-    
+
     statusText.innerText = "Terhubung";
     statusText.className = "status-val text-green";
-    
+
     if (isCordova) {
       portText.innerHTML = "Status Port: <b style='color:#2ed573'>TERHUBUNG (Kabel USB OTG)</b>";
     } else {
       portText.innerHTML = "Status Port: <b>TERBUNGKUS (Serial OTG)</b>";
     }
-    
+
     uploadBtn.classList.remove("disabled");
     uploadBtn.disabled = false;
     readBtn.classList.remove("disabled");
@@ -553,15 +553,15 @@ function updateConnectionUI(connected) {
   } else {
     btn.innerText = "🔌 HUBUNGKAN ARDUINO NANO";
     btn.className = "btn-ctrl btn-start";
-    
+
     badge.className = "status-badge disconnected";
     badgeText.innerText = "Terputus";
-    
+
     statusText.innerText = "Terputus";
     statusText.className = "status-val text-red";
-    
+
     portText.innerHTML = "Status Port: <b>Tidak Ada Sambungan</b>";
-    
+
     uploadBtn.classList.add("disabled");
     uploadBtn.disabled = true;
     readBtn.classList.add("disabled");
@@ -576,16 +576,16 @@ function packProfileHex(profile) {
   const totalSize = 12 + 9 + 1 + (profile.pattern.length * 5);
   const buffer = new ArrayBuffer(totalSize);
   const view = new DataView(buffer);
-  
+
   let offset = 0;
-  
+
   // 1. Calibration (12 bytes)
   for (let i = 0; i < 6; i++) {
     const s = profile.servos[i];
     view.setUint8(offset++, s.up_angle);
     view.setUint8(offset++, s.press_angle);
   }
-  
+
   // 2. Settings (9 bytes)
   view.setUint8(offset++, profile.auto_start ? 1 : 0);
   view.setUint8(offset++, profile.loop_mode === "CUSTOM" ? 1 : 0);
@@ -593,10 +593,10 @@ function packProfileHex(profile) {
   view.setUint8(offset++, profile.random_delay_enabled ? 1 : 0);
   view.setUint16(offset, parseInt(profile.random_delay_min), false); offset += 2;
   view.setUint16(offset, parseInt(profile.random_delay_max), false); offset += 2;
-  
+
   // 3. Pattern Size (1 byte)
   view.setUint8(offset++, profile.pattern.length);
-  
+
   // 4. Actions (5 bytes each)
   for (const action of profile.pattern) {
     let actIdx = actionTypesList.indexOf(action.action_type);
@@ -605,7 +605,7 @@ function packProfileHex(profile) {
     view.setUint16(offset, parseInt(action.press_duration), false); offset += 2;
     view.setUint16(offset, parseInt(action.delay_duration), false); offset += 2;
   }
-  
+
   // Convert to hex
   const bytes = new Uint8Array(buffer);
   let hex = "";
@@ -619,15 +619,15 @@ function parseConfigHex(hexStr, profile) {
   const bytes = new Uint8Array(hexStr.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
   const buffer = bytes.buffer;
   const view = new DataView(buffer);
-  
+
   let offset = 0;
-  
+
   // 1. Calibration (12 bytes)
   for (let i = 0; i < 6; i++) {
     profile.servos[i].up_angle = view.getUint8(offset++);
     profile.servos[i].press_angle = view.getUint8(offset++);
   }
-  
+
   // 2. Settings (9 bytes)
   profile.auto_start = view.getUint8(offset++) === 1;
   profile.loop_mode = view.getUint8(offset++) === 1 ? "CUSTOM" : "INFINITY";
@@ -635,10 +635,10 @@ function parseConfigHex(hexStr, profile) {
   profile.random_delay_enabled = view.getUint8(offset++) === 1;
   profile.random_delay_min = view.getUint16(offset, false); offset += 2;
   profile.random_delay_max = view.getUint16(offset, false); offset += 2;
-  
+
   // 3. Pattern Length (1 byte)
   const patternLength = view.getUint8(offset++);
-  
+
   // 4. Actions
   profile.pattern = [];
   for (let i = 0; i < patternLength; i++) {
@@ -646,7 +646,7 @@ function parseConfigHex(hexStr, profile) {
     const actIdx = view.getUint8(offset++);
     const pressDur = view.getUint16(offset, false); offset += 2;
     const delayDur = view.getUint16(offset, false); offset += 2;
-    
+
     const actType = actionTypesList[actIdx] || "NONE";
     profile.pattern.push({
       action_type: actType,
@@ -775,7 +775,7 @@ function renderCalibrationTab() {
 function renderPatternTab() {
   const list = document.getElementById("pattern-actions-list");
   list.innerHTML = "";
-  
+
   document.getElementById("pattern-summary-text").innerText = `${profile.pattern.length} Aksi`;
 
   profile.pattern.forEach((action, index) => {
@@ -803,9 +803,9 @@ function renderPatternTab() {
 function openActionEditor(index) {
   const card = document.getElementById("action-editor-card");
   const action = profile.pattern[index];
-  
+
   document.getElementById("editor-action-index").innerText = index + 1;
-  
+
   // Load select types
   const typeSelect = document.getElementById("editor-action-type");
   typeSelect.innerHTML = "";
@@ -835,7 +835,7 @@ function updateEstimatedDuration() {
 
   const durationStr = totalMs / 1000;
   const dbText = document.getElementById("dashboard-duration-text");
-  
+
   if (profile.pattern.length === 0) {
     dbText.innerText = "Pola Kosong";
     dbText.className = "status-val text-red";
@@ -858,7 +858,7 @@ function updateEstimatedDuration() {
 function renderValidationTab() {
   const box = document.getElementById("validation-issues-box");
   box.innerHTML = "";
-  
+
   const issues = [];
   const warnings = [];
 
@@ -866,7 +866,7 @@ function renderValidationTab() {
   if (profile.pattern.length === 0) {
     issues.push("Aksi pola tidak boleh kosong! Robot tidak akan bisa berjalan.");
   }
-  
+
   // Size limit check
   if (profile.pattern.length > 150) {
     issues.push("Aksi melebihi batas EEPROM Arduino! Max 150 aksi diperbolehkan.");
@@ -923,11 +923,11 @@ function renderValidationTab() {
 function initSimCanvas() {
   const canvas = document.getElementById("sim-canvas");
   const wrapper = canvas.parentElement;
-  
+
   // Set logical pixels
   canvas.width = wrapper.clientWidth;
   canvas.height = wrapper.clientHeight;
-  
+
   drawVirtualRig();
 }
 
@@ -936,9 +936,9 @@ function drawVirtualRig() {
   const ctx = canvas.getContext("2d");
   const cw = canvas.width;
   const ch = canvas.height;
-  
+
   ctx.clearRect(0, 0, cw, ch);
-  
+
   // Render header title
   ctx.fillStyle = "#a4b0be";
   ctx.font = "bold 10px sans-serif";
@@ -954,12 +954,12 @@ function drawVirtualRig() {
     // Dynamic offsets
     const cx = key.x + ox;
     const cy = key.y + oy;
-    
+
     // Draw Switch Footprint Outline
     ctx.strokeStyle = key.pressed ? "#ffffff" : "#57606f";
     ctx.lineWidth = key.pressed ? 2.5 : 1.5;
     ctx.fillStyle = key.pressed ? key.color : "#1c2430";
-    
+
     ctx.beginPath();
     if (ctx.roundRect) {
       ctx.roundRect(cx - 35, cy - 30, 70, 60, 8);
@@ -968,7 +968,7 @@ function drawVirtualRig() {
     }
     ctx.fill();
     ctx.stroke();
-    
+
     // Draw character label
     ctx.fillStyle = key.pressed ? "#ffffff" : "#a4b0be";
     ctx.font = "bold 13px sans-serif";
@@ -981,7 +981,7 @@ function drawVirtualRig() {
     ctx.moveTo(cx - 15, cy + 18);
     ctx.lineTo(cx + 15, cy + 18);
     ctx.stroke();
-    
+
     // LED Pin labels
     ctx.fillStyle = "#57606f";
     ctx.font = "9px monospace";
@@ -1018,10 +1018,10 @@ function runSimulationNextStep() {
   if (action.action_type.startsWith("BLINK_")) {
     const blinkKey = action.action_type.replace("BLINK_", "");
     simTraceLog(`[${action.action_type}] Menekan ${blinkKey} (staggered)...`);
-    
+
     servosUI[blinkKey].pressed = true;
     drawVirtualRig();
-    
+
     const staggerDelay = 150;
     if (action.press_duration > staggerDelay) {
       simTimeoutId = setTimeout(() => {
@@ -1030,7 +1030,7 @@ function runSimulationNextStep() {
         servosUI[blinkKey].pressed = true;
         servosUI["SHIFT"].pressed = true;
         drawVirtualRig();
-        
+
         // Schedule release
         const remaining = action.press_duration - staggerDelay;
         simTimeoutId = setTimeout(releaseAllServos, remaining);
@@ -1053,7 +1053,7 @@ function runSimulationNextStep() {
     if (!simRunning) return;
     document.getElementById("lbl-servo-state").innerText = "UP";
     document.getElementById("lbl-servo-state").style.background = "rgba(255,255,255,0.1)";
-    
+
     for (const name in servosUI) servosUI[name].pressed = false;
     drawVirtualRig();
 
@@ -1069,7 +1069,7 @@ function runSimulationNextStep() {
     }
 
     document.getElementById("lbl-sim-delay").innerText = `Jeda: ${delayDuration}ms`;
-    
+
     simTimeoutId = setTimeout(() => {
       simStepIndex++;
       runSimulationNextStep();
@@ -1086,11 +1086,11 @@ function startSimulation() {
   simStepIndex = 0;
   document.getElementById("btn-run-sim").innerText = "⏹ STOP SIMULASI";
   document.getElementById("btn-run-sim").className = "btn-ctrl btn-stop";
-  
+
   const trace = document.getElementById("sim-log-trace");
   trace.classList.remove("hidden");
   trace.innerHTML = "<div>Simulasi dijalankan...</div>";
-  
+
   runSimulationNextStep();
 }
 
@@ -1102,12 +1102,12 @@ function stopSimulation() {
   }
   document.getElementById("btn-run-sim").innerText = "▶ JALANKAN SIMULASI";
   document.getElementById("btn-run-sim").className = "btn-ctrl btn-start";
-  
+
   document.getElementById("lbl-sim-step").innerText = "Langkah: - / -";
   document.getElementById("lbl-sim-delay").innerText = "Sisa jeda: 0ms";
   document.getElementById("lbl-servo-state").innerText = "UP";
   document.getElementById("lbl-servo-state").style.background = "rgba(255,255,255,0.1)";
-  
+
   document.getElementById("sim-log-trace").classList.add("hidden");
 
   // Reset pressed states
@@ -1129,11 +1129,11 @@ function handleCanvasTap(e, isPressed) {
 
   const canvas = document.getElementById("sim-canvas");
   const rect = canvas.getBoundingClientRect();
-  
+
   // Calculate relative coordinate scales
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  
+
   const tapX = ((clientX - rect.left) / rect.width) * canvas.width;
   const tapY = ((clientY - rect.top) / rect.height) * canvas.height;
 
@@ -1152,7 +1152,7 @@ function handleCanvasTap(e, isPressed) {
       if (key.pressed !== isPressed) {
         key.pressed = isPressed;
         drawVirtualRig();
-        
+
         // Move hardware servo
         const sIdx = Object.keys(servosUI).indexOf(name);
         const sConf = profile.servos[sIdx];
@@ -1169,21 +1169,21 @@ function handleCanvasTap(e, isPressed) {
 function toggleTesterState() {
   const btn = document.getElementById("btn-tester-switch");
   testerActive = !testerActive;
-  
+
   if (testerActive) {
     stopSimulation(); // Turn off sim
     document.getElementById("sim-run-controls").classList.add("hidden");
-    
+
     btn.innerText = "🟢 TESTER: ON";
     btn.className = "switch-btn on";
-    
+
     logToConsole("Mode Tester Aktif. Sentuh tombol visual di layar untuk menggerakkan servo langsung.");
   } else {
     document.getElementById("sim-run-controls").classList.remove("hidden");
-    
+
     btn.innerText = "🔴 TESTER: OFF";
     btn.className = "switch-btn off";
-    
+
     // Release all physical servos for safety
     Object.keys(servosUI).forEach((name, idx) => {
       if (servosUI[name].pressed) {
@@ -1201,7 +1201,7 @@ function toggleTesterState() {
    DOM LOADED INITIALIZATIONS & BINDINGS
    ========================================== */
 document.addEventListener("DOMContentLoaded", () => {
-  
+
   // Register Service Worker for offline PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => {
@@ -1216,15 +1216,15 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", (e) => {
       const tabName = btn.getAttribute("data-tab");
       activeTab = tabName;
-      
+
       // Nav highlight
       document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
       btn.classList.add("active");
-      
+
       // Panel showing
       document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
       document.getElementById(`tab-${tabName}`).classList.add("active");
-      
+
       // Tab load updates
       if (tabName === "calibration") renderCalibrationTab();
       if (tabName === "pattern") renderPatternTab();
@@ -1407,7 +1407,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("sim-canvas");
   canvas.addEventListener("mousedown", (e) => handleCanvasTap(e, true));
   canvas.addEventListener("mouseup", (e) => handleCanvasTap(e, false));
-  
+
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     handleCanvasTap(e, true);
@@ -1420,7 +1420,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 10. EEPROM Upload & Read
   document.getElementById("btn-eeprom-upload").addEventListener("click", () => {
     if (!serialConnected) return;
-    
+
     // Check validation first
     const issues = [];
     if (profile.pattern.length === 0) issues.push("Pola kosong");
@@ -1449,7 +1449,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 11. Profiles JSON file load & save
   document.getElementById("btn-profile-save").addEventListener("click", () => {
     const jsonStr = JSON.stringify(profile, null, 2);
-    
+
     // Copy to clipboard fallback (guaranteed to work everywhere, including Cordova)
     let copied = false;
     try {
@@ -1467,7 +1467,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const blob = new Blob([jsonStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      
+
       const a = document.createElement("a");
       a.href = url;
       a.download = "robot_profile.json";
@@ -1476,7 +1476,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       logToConsole("Profil berhasil diekspor ke file robot_profile.json.");
-      
+
       if (copied) {
         alert("Konfigurasi profil berhasil diekspor ke file!\n\n(Salinan teks JSON juga otomatis disimpan di clipboard Anda sebagai cadangan).");
       } else {
@@ -1496,16 +1496,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
-    
+
     input.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
           const loaded = JSON.parse(evt.target.result);
-          
+
           // Re-populate profile active values
           profile.loop_mode = loaded.loop_mode || "INFINITY";
           profile.loop_count = loaded.loop_count || 1;
@@ -1514,7 +1514,7 @@ document.addEventListener("DOMContentLoaded", () => {
           profile.random_delay_max = loaded.random_delay_max || 1000;
           profile.auto_start = loaded.auto_start || false;
           profile.pattern = loaded.pattern || [];
-          
+
           if (loaded.servos) {
             loaded.servos.forEach((s, idx) => {
               if (profile.servos[idx]) {
@@ -1529,7 +1529,7 @@ document.addEventListener("DOMContentLoaded", () => {
           renderPatternTab();
           updateEstimatedDuration();
           renderValidationTab();
-          
+
           logToConsole(`Profil berhasil dimuat dari file: ${file.name}`);
           alert("Profil sukses dimuat!");
         } catch (err) {
@@ -1538,7 +1538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
       reader.readAsText(file);
     });
-    
+
     input.click();
   });
 
@@ -1547,7 +1547,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const info = localStorage.getItem(`robot_profile_slot_info_${slotNum}`);
     const lbl = document.getElementById(`lbl-slot-${slotNum}`);
     const btnLoad = document.getElementById(`btn-slot-load-${slotNum}`);
-    
+
     if (info) {
       if (lbl) {
         lbl.innerText = `Slot ${slotNum}: ${info}`;
@@ -1573,11 +1573,11 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const jsonStr = JSON.stringify(profile);
       localStorage.setItem(`robot_profile_slot_${slotNum}`, jsonStr);
-      
+
       const timestamp = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
       const infoText = `Aktif (${timestamp})`;
       localStorage.setItem(`robot_profile_slot_info_${slotNum}`, infoText);
-      
+
       updateSlotUI(slotNum);
       logToConsole(`Profil disimpan ke Slot ${slotNum} HP.`);
       alert(`Profil berhasil disimpan ke Slot ${slotNum}!`);
@@ -1590,9 +1590,9 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const jsonStr = localStorage.getItem(`robot_profile_slot_${slotNum}`);
       if (!jsonStr) return;
-      
+
       const loaded = JSON.parse(jsonStr);
-      
+
       // Re-populate profile active values
       profile.loop_mode = loaded.loop_mode || "INFINITY";
       profile.loop_count = loaded.loop_count || 1;
@@ -1601,7 +1601,7 @@ document.addEventListener("DOMContentLoaded", () => {
       profile.random_delay_max = loaded.random_delay_max || 1000;
       profile.auto_start = loaded.auto_start || false;
       profile.pattern = loaded.pattern || [];
-      
+
       if (loaded.servos) {
         loaded.servos.forEach((s, idx) => {
           if (profile.servos[idx]) {
@@ -1616,7 +1616,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderPatternTab();
       updateEstimatedDuration();
       renderValidationTab();
-      
+
       logToConsole(`Profil berhasil dimuat dari Slot ${slotNum} HP.`);
       alert(`Profil sukses dimuat dari Slot ${slotNum}!`);
     } catch (err) {
@@ -1681,7 +1681,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 13. Neso Tracker Event Bindings
   document.getElementById("btn-mobile-wallet-save").addEventListener("click", saveMobileWallet);
   document.getElementById("btn-mobile-wallet-delete").addEventListener("click", deleteMobileWallet);
-  
+
   // Populate initial MetaMask address field
   document.getElementById("mobile-wallet-address").value = mobileWalletAddress;
 
@@ -1707,7 +1707,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSimCanvas();
     initTesterCanvas();
   });
-  
+
 });
 
 /* ==========================================
@@ -1785,10 +1785,10 @@ function handleTesterCanvasClick(e, isPressed) {
   if (!testerQwertyActive) return;
   const canvas = document.getElementById("tester-canvas");
   const rect = canvas.getBoundingClientRect();
-  
+
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  
+
   const clickX = ((clientX - rect.left) / rect.width) * canvas.width;
   const clickY = ((clientY - rect.top) / rect.height) * canvas.height;
 
@@ -1826,7 +1826,7 @@ function handleTesterCanvasClick(e, isPressed) {
 function setupPhysicalKeyboardListeners() {
   window.addEventListener("keydown", (e) => {
     if (!testerQwertyActive || activeTab !== "tester") return;
-    
+
     if (e.key === "Tab" || e.key === " ") {
       e.preventDefault();
     }
@@ -1924,7 +1924,7 @@ function saveMobileWallet() {
   }
   mobileWalletAddress = addr;
   localStorage.setItem("mobileWalletAddress", addr);
-  
+
   if (addr) {
     document.getElementById("mobile-earn-details").classList.remove("hidden");
     document.getElementById("lbl-mobile-wallet-warning").classList.add("hidden");
@@ -1936,7 +1936,7 @@ function saveMobileWallet() {
     logToConsole("Alamat wallet MetaMask dihapus.");
     alert("Alamat wallet MetaMask dihapus!");
   }
-  
+
   mobileInitialNeso = null;
   mobileInitialNxpc = null;
   fetchMobileRpcBalance();
@@ -2031,8 +2031,8 @@ function updateMobileTrackerLoop() {
     const hrs = Math.floor(elapsed / 3600000);
     const mins = Math.floor((elapsed % 3600000) / 60000);
     const secs = Math.floor((elapsed % 60000) / 1000);
-    
-    document.getElementById("lbl-mobile-timer").innerText = 
+
+    document.getElementById("lbl-mobile-timer").innerText =
       `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     document.getElementById("lbl-mobile-session-status").innerText = "🟢 ROBOT BERJALAN";
     document.getElementById("lbl-mobile-session-status").style.color = "var(--accent-green)";

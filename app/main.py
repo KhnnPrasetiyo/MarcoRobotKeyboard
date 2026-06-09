@@ -1,140 +1,408 @@
+"""TODO: module documentation"""
+
+import ctypes
+
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
+except Exception as e:
+    print("Error occurred")
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()  # Fallback
+    except Exception as e:
+        print("Error occurred")
+        pass
+
+import queue
+import time
 import tkinter as tk
 from tkinter import ttk
-import queue
 
-from app.models import RobotProfile
+from PIL import Image, ImageTk
+
 from app.connection import SerialConnectionManager
-
+from app.models import RobotProfile
+from app.tabs.auto_farm_firmware import AutoFarmFirmwareTab
 from app.tabs.dashboard import DashboardTab
-from app.tabs.calibration import CalibrationTab
 from app.tabs.pattern import PatternBuilderTab
-from app.tabs.loop_settings import LoopSettingsTab
-from app.tabs.random_delay_settings import RandomDelaySettingsTab
-from app.tabs.simulation import SimulationTab
-from app.tabs.validator import ValidatorTab
-from app.tabs.tester import KeyboardTesterTab
 from app.tabs.profiles import ProfileManagerTab
-from app.tabs.serial_manager import SerialManagerTab
-from app.tabs.neso_tracker import NesoTrackerTab
+from app.tabs.robot_settings import RobotSettingsTab
+
+# ==============================================================================
+# CONFIGURASI TRANSPARANSI UI (GLASSMORPHISM)
+# ==============================================================================
+# Ubah nilai di bawah ini untuk mengatur tingkat transparansi seluruh aplikasi.
+# Rentang nilai: 0.0 (transparan penuh) hingga 1.0 (buram total/solid)
+OPACITY_HALAMAN_UTAMA = 0.70  # Untuk seluruh halaman/tab utama dan sub-tab
+OPACITY_ELEMENT_SIDEBAR = 0.70  # Untuk label dan tombol navigasi di sidebar
+# ==============================================================================
+
+
+class WallpaperManager:
+    """TODO: add documentation"""
+
+    def __init__(self):
+        """TODO: add documentation"""
+        import os
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.wallpaper_path = os.path.join(base_dir, "assets", "wibu_wallpaper.jpg")
+        self.original_img = None
+        self.cache = {}
+        self.registered_widgets = []
+        self.load_image()
+
+    def load_image(self):
+        """TODO: add documentation"""
+        import os
+
+        try:
+            if os.path.exists(self.wallpaper_path):
+                self.original_img = Image.open(self.wallpaper_path)
+            else:
+                fallback_path = r"C:\Users\Admin\Pictures\download (1).jpg"
+                if os.path.exists(fallback_path):
+                    self.original_img = Image.open(fallback_path)
+        except Exception as e:
+            print(f"[WallpaperManager] Gagal memuat gambar: {e}")
+
+    def register(self, widget, is_sidebar=False):
+        """TODO: add documentation"""
+        self.registered_widgets.append((widget, is_sidebar))
+        widget.bind("<Configure>", lambda e, w=widget: self.on_widget_resize(w))
+        # Initial draw delayed slightly to let widget dimensions settle
+        widget.after(50, lambda: self.trigger_draw(widget))
+
+    def on_widget_resize(self, widget):
+        """TODO: add documentation"""
+        if hasattr(widget, "_resize_after_id"):
+            widget.after_cancel(widget._resize_after_id)
+        widget._resize_after_id = widget.after(150, lambda: self.trigger_draw(widget))
+
+    def trigger_draw(self, widget):
+        """TODO: add documentation"""
+        if not self.original_img:
+            return
+        w = widget.winfo_width()
+        h = widget.winfo_height()
+        if w <= 1 or h <= 1:
+            return
+
+        is_sidebar = False
+        for reg_widget, sb_flag in self.registered_widgets:
+            if reg_widget == widget:
+                is_sidebar = sb_flag
+                break
+
+        key = (w, h, is_sidebar)
+        if key not in self.cache:
+            try:
+                img_w, img_h = self.original_img.size
+                img_ratio = img_w / img_h
+
+                if is_sidebar:
+                    # Sidebar uses left-crop cover fit
+                    scale_factor = h / img_h
+                    new_w = int(img_w * scale_factor)
+                    new_h = h
+                    resized = self.original_img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+                    cropped = resized.crop((0, 0, w, h))
+                    # Apply a dark semi-transparent overlay to match the tab theme (#13131c at 80% strength)
+                    overlay = Image.new("RGB", cropped.size, "#13131c")
+                    cropped = Image.blend(cropped, overlay, alpha=0.80)
+                else:
+                    # Centered cover fit
+                    widget_ratio = w / h
+                    if widget_ratio > img_ratio:
+                        new_w = w
+                        new_h = int(w / img_ratio)
+                    else:
+                        new_h = h
+                        new_w = int(h * img_ratio)
+
+                    resized = self.original_img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+                    x_offset = (new_w - w) // 2
+                    y_offset = (new_h - h) // 2
+                    cropped = resized.crop((x_offset, y_offset, x_offset + w, y_offset + h))
+
+                self.cache[key] = ImageTk.PhotoImage(cropped)
+            except Exception as e:
+                print(f"[WallpaperManager] Resize error: {e}")
+                return
+
+        photo = self.cache[key]
+        widget.delete("wallpaper")
+        widget.create_image(0, 0, image=photo, anchor="nw", tags="wallpaper")
+        widget.image = photo
+
 
 class ModernApp(tk.Tk):
+    """TODO: add documentation"""
+
     def __init__(self):
+        """TODO: add documentation"""
         super().__init__()
-        self.title("Studio Kontroler Robot Keyboard Arduino Nano")
-        self.geometry("1100x700")
-        
+        self.title("Logitech G HUB Audio Service")
+        # Set a larger default size and start maximized for better visibility
+        self.geometry("1400x900")
+        self.state("zoomed")  # Open window maximized on Windows
+
+        # Inisialisasi Wallpaper Manager terpusat
+        self.wallpaper_manager = WallpaperManager()
+
         # Configure overall themes and styles
-        self.configure(bg="#2f3542")
+        self.configure(bg="#1a1a24")
         self.style = ttk.Style()
         self.style.theme_use("clam")
-        
-        # Setup modern dark colors
-        self.style.configure(".", background="#2f3542", foreground="#ffffff", fieldbackground="#2f3542")
-        self.style.configure("TLabel", background="#2f3542", foreground="#ffffff")
-        self.style.configure("TLabelframe", background="#2f3542", foreground="#ffffff", bordercolor="#57606f")
-        self.style.configure("TLabelframe.Label", background="#2f3542", foreground="#ffa502", font=("Helvetica", 10, "bold"))
-        self.style.configure("TButton", background="#3867d6", foreground="#ffffff", borderwidth=0, font=("Helvetica", 9, "bold"))
-        self.style.map("TButton", background=[("active", "#4b7bec")])
-        self.style.configure("TCheckbutton", background="#2f3542", foreground="#ffffff")
-        self.style.configure("TRadiobutton", background="#2f3542", foreground="#ffffff")
-        
+
+        # Setup modern dark wibu sakura colors
+        self.style.configure(
+            ".", background="#1a1a24", foreground="#ffffff", fieldbackground="#1a1a24"
+        )
+        self.style.configure("TLabel", background="#1a1a24", foreground="#ffffff")
+
+        # Style TNotebook and TNotebook.Tab for sakura theme alignment
+        self.style.configure("TNotebook", background="#1a1a24", borderwidth=0, highlightthickness=0)
+        self.style.configure(
+            "TNotebook.Tab",
+            background="#13131c",
+            foreground="#dec0f1",
+            borderwidth=0,
+            padding=[12, 6],
+            font=("Segoe UI", 9, "bold"),
+        )
+        self.style.map(
+            "TNotebook.Tab",
+            background=[("selected", "#ff75a0"), ("active", "#1e1e2d")],
+            foreground=[("selected", "#ffffff"), ("active", "#ff75a0")],
+        )
+
+        self.style.configure(
+            "TLabelframe", background="#1a1a24", foreground="#ffffff", bordercolor="#ff75a0"
+        )
+        self.style.configure(
+            "TLabelframe.Label",
+            background="#1a1a24",
+            foreground="#ff75a0",
+            font=("Helvetica", 10, "bold"),
+        )
+        self.style.configure(
+            "TButton",
+            background="#ff75a0",
+            foreground="#ffffff",
+            borderwidth=0,
+            font=("Helvetica", 9, "bold"),
+        )
+        self.style.map("TButton", background=[("active", "#ff9ff3")])
+        self.style.configure("TCheckbutton", background="#1a1a24", foreground="#ffffff")
+        self.style.configure("TRadiobutton", background="#1a1a24", foreground="#ffffff")
+
         # Enhanced inputs & tables visibility configuration
-        self.style.configure("TCombobox", fieldbackground="#1e272e", background="#3867d6", foreground="#ffffff", arrowcolor="#ffffff")
-        self.style.map("TCombobox", fieldbackground=[("readonly", "#1e272e")], foreground=[("readonly", "#ffffff")])
-        
-        self.style.configure("TSpinbox", fieldbackground="#1e272e", foreground="#ffffff", arrowcolor="#ffffff", buttonbackground="#3867d6")
-        self.style.map("TSpinbox", fieldbackground=[("readonly", "#1e272e")], foreground=[("readonly", "#ffffff")])
-        
-        self.style.configure("TEntry", fieldbackground="#1e272e", foreground="#ffffff")
-        
-        self.style.configure("Treeview", background="#1e272e", fieldbackground="#1e272e", foreground="#ffffff")
-        self.style.configure("Treeview.Heading", background="#2f3542", foreground="#ffffff", font=("Helvetica", 10, "bold"))
-        
+        self.style.configure(
+            "TCombobox",
+            fieldbackground="#272736",
+            background="#ff75a0",
+            foreground="#ffffff",
+            arrowcolor="#ffffff",
+        )
+        self.style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", "#272736")],
+            foreground=[("readonly", "#ffffff")],
+        )
+
+        self.style.configure(
+            "TSpinbox",
+            fieldbackground="#272736",
+            foreground="#ffffff",
+            arrowcolor="#ffffff",
+            buttonbackground="#ff75a0",
+        )
+        self.style.map(
+            "TSpinbox",
+            fieldbackground=[("readonly", "#272736")],
+            foreground=[("readonly", "#ffffff")],
+        )
+
+        self.style.configure("TEntry", fieldbackground="#272736", foreground="#ffffff")
+
+        self.style.configure(
+            "Treeview", background="#272736", fieldbackground="#272736", foreground="#ffffff"
+        )
+        self.style.configure(
+            "Treeview.Heading",
+            background="#1a1a24",
+            foreground="#ff75a0",
+            font=("Helvetica", 10, "bold"),
+        )
+
         # Models and Communication Shared Instances
         self.profile = RobotProfile()
         self.robot_running = False
         self.robot_start_time = None
         self.log_queue = queue.Queue()
         self.connection = SerialConnectionManager(
-            log_callback=self.connection_logger,
-            status_callback=self.connection_status_handler
+            log_callback=self.connection_logger, status_callback=self.connection_status_handler
         )
-        
-        # Start background HTTP server for mobile remote control Wi-Fi bridge
-        import threading
-        self.http_thread = threading.Thread(target=self.start_http_bridge, daemon=True)
-        self.http_thread.start()
-        
-        # Build Side Navigation Panel
-        self.sidebar = tk.Frame(self, bg="#1e272e", width=250)
+
+        # Build Side Navigation Panel (Wibu style dark purple/indigo)
+        self.sidebar = tk.Frame(self, bg="#13131c", width=250)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
+        # Wallpaper Background for Sidebar
+        self.sidebar_bg = tk.Canvas(self.sidebar, highlightthickness=0, bg="#13131c")
+        self.sidebar_bg.place(x=0, y=0, relwidth=1, relheight=1)
+        self.wallpaper_manager.register(self.sidebar_bg, is_sidebar=True)
+
         # Title / Branding
-        lbl_brand = tk.Label(self.sidebar, text="🤖 KBD ROBOT", font=("Helvetica", 16, "bold"), bg="#1e272e", fg="#ffa502")
+        lbl_brand = tk.Label(
+            self.sidebar,
+            text="🌸 KBD ROBOT LITE",
+            font=("Helvetica", 15, "bold"),
+            bg="#13131c",
+            fg="#ff75a0",
+        )
         lbl_brand.pack(pady=20, padx=10, anchor="w")
-        
-        lbl_sub = tk.Label(self.sidebar, text="Studio Kontroler Arduino", font=("Helvetica", 8), bg="#1e272e", fg="#747d8c")
+
+        lbl_sub = tk.Label(
+            self.sidebar,
+            text="Studio Kontroler Sakura v1.2.0",
+            font=("Helvetica", 8),
+            bg="#13131c",
+            fg="#dec0f1",
+        )
         lbl_sub.pack(pady=(0, 20), padx=15, anchor="w")
 
         # Container for main pages
-        self.container = tk.Frame(self, bg="#2f3542", padx=10, pady=10)
+        self.container = tk.Frame(self, bg="#1a1a24", padx=10, pady=10)
         self.container.pack(side="right", fill="both", expand=True)
+
+        # Wallpaper Background for Container
+        self.container_bg = tk.Canvas(self.container, highlightthickness=0, bg="#1a1a24")
+        self.container_bg.place(x=0, y=0, relwidth=1, relheight=1)
+        self.wallpaper_manager.register(self.container_bg, is_sidebar=False)
 
         self.pages = {}
         self.nav_buttons = {}
 
-        # Dictionary describing Tab mappings
-        self.tab_info = [
-            ("Dashboard", DashboardTab),
-            ("Pemantauan & Pendapatan", NesoTrackerTab),
-            ("Kalibrasi Servo", CalibrationTab),
-            ("Pembuat Pola", PatternBuilderTab),
-            ("Pengaturan Loop", LoopSettingsTab),
-            ("Jeda Aksi Acak", RandomDelaySettingsTab),
-            ("Simulasi Robot", SimulationTab),
-            ("Validasi & Safety", ValidatorTab),
-            ("Penguji Tombol", KeyboardTesterTab),
-            ("Manajer Profil", ProfileManagerTab),
-            ("Koneksi Serial", SerialManagerTab)
+        # Dictionary describing Tab mappings categorized
+        self.categories = [
+            (
+                "📊 MONITORING",
+                [
+                    ("Dashboard Utama", DashboardTab, "📊"),
+                ],
+            ),
+            (
+                "🧱 MAKRO",
+                [
+                    ("Pembuat Makro", PatternBuilderTab, "🧱"),
+                ],
+            ),
+            (
+                "🔧 PENGATURAN",
+                [
+                    ("Konfigurasi Robot", RobotSettingsTab, "🔧"),
+                ],
+            ),
+            (
+                "🤖 OTOMATISASI",
+                [
+                    ("Fitur Auto & Jaringan", AutoFarmFirmwareTab, "🤖"),
+                ],
+            ),
+            (
+                "📁 PROFIL",
+                [
+                    ("Manajer Profil", ProfileManagerTab, "📁"),
+                ],
+            ),
         ]
 
         # Instantiation
-        for name, cls in self.tab_info:
-            # Inject appropriate constructor signatures
-            if cls == DashboardTab:
-                frame = cls(self.container, self.profile, self.connection, self.log_queue)
-            elif cls == ProfileManagerTab:
-                frame = cls(self.container, self.profile, self.connection, self.reload_all_tabs)
-            elif cls == SerialManagerTab:
-                frame = cls(self.container, self.profile, self.connection, self.on_connection_state_changed)
-                frame.set_reload_callback(self.reload_all_tabs)
-            else:
-                frame = cls(self.container, self.profile, self.connection)
-            
-            self.pages[name] = frame
-            
-            # Nav button on sidebar
-            btn = tk.Button(self.sidebar, text=f"  {name}", anchor="w", font=("Helvetica", 10),
-                            bg="#1e272e", fg="#a4b0be", activebackground="#2f3542", activeforeground="#ffffff",
-                            relief="flat", bd=0, height=2, command=lambda n=name: self.show_page(n))
-            btn.pack(fill="x", padx=10, pady=2)
-            
-            # Hover bindings
-            btn.bind("<Enter>", lambda e, b=btn: self.on_nav_enter(b))
-            btn.bind("<Leave>", lambda e, b=btn: self.on_nav_leave(b))
-            
-            self.nav_buttons[name] = btn
+        for cat_name, tabs in self.categories:
+            # Elegant category section header
+            lbl_cat = tk.Label(
+                self.sidebar,
+                text=f"  {cat_name}",
+                font=("Helvetica", 8, "bold"),
+                bg="#13131c",
+                fg="#ff75a0",
+                anchor="w",
+            )
+            lbl_cat.pack(fill="x", padx=10, pady=(12, 2))
+
+            for name, cls, icon in tabs:
+                # Inject appropriate constructor signatures
+                if cls == DashboardTab:
+                    frame = cls(self.container, self.profile, self.connection, self.log_queue)
+                elif cls == AutoFarmFirmwareTab or cls == ProfileManagerTab:
+                    frame = cls(self.container, self.profile, self.connection, self.reload_all_tabs)
+                else:
+                    frame = cls(self.container, self.profile, self.connection)
+
+                # Inject a universal reload callback
+                frame.on_profile_updated = self.reload_all_tabs
+
+                # Apply semi-transparency using pywinstyles for Sakura glassmorphism look
+                try:
+                    import pywinstyles
+
+                    pywinstyles.set_opacity(frame, value=OPACITY_HALAMAN_UTAMA)
+                except Exception as e:
+                    print(f"[ModernApp] Gagal menyetel transparansi halaman {name}: {e}")
+
+                self.pages[name] = frame
+
+                # Nav button on sidebar with aligned icon and clean Segoe UI font
+                btn = tk.Button(
+                    self.sidebar,
+                    text=f" {icon}   {name}",
+                    anchor="w",
+                    font=("Segoe UI", 9, "bold"),
+                    bg="#13131c",
+                    fg="#dec0f1",
+                    activebackground="#1a1a24",
+                    activeforeground="#ff75a0",
+                    relief="flat",
+                    bd=0,
+                    height=2,
+                    command=lambda n=name: self.show_page(n),
+                )
+                btn.pack(fill="x", padx=10, pady=1)
+
+                # Hover bindings
+                btn.bind("<Enter>", lambda e, b=btn: self.on_nav_enter(b))
+                btn.bind("<Leave>", lambda e, b=btn: self.on_nav_leave(b))
+
+                self.nav_buttons[name] = btn
 
         # Footer connection label on sidebar
-        self.lbl_conn_status = tk.Label(self.sidebar, text="● Terputus", font=("Helvetica", 9, "bold"),
-                                        bg="#1e272e", fg="#ff4757", anchor="w")
+        self.lbl_conn_status = tk.Label(
+            self.sidebar,
+            text="● Terputus",
+            font=("Helvetica", 9, "bold"),
+            bg="#13131c",
+            fg="#ff4757",
+            anchor="w",
+        )
         self.lbl_conn_status.pack(side="bottom", fill="x", padx=15, pady=20)
 
+        # Apply semi-transparency using pywinstyles to sidebar labels and buttons to expose wallpaper
+        try:
+            import pywinstyles
+
+            for child in self.sidebar.winfo_children():
+                if isinstance(child, (tk.Label, tk.Button)) and child != self.sidebar_bg:
+                    pywinstyles.set_opacity(child, value=OPACITY_ELEMENT_SIDEBAR)
+        except Exception as e:
+            print(f"[ModernApp] Gagal menyetel transparansi widget sidebar: {e}")
+
         # Show Dashboard initially
-        self.show_page("Dashboard")
+        self.show_page("Dashboard Utama")
 
     def show_page(self, name):
+        """TODO: add documentation"""
         # Hide all frames
         for frame in self.pages.values():
             frame.pack_forget()
@@ -145,23 +413,26 @@ class ModernApp(tk.Tk):
         # Update navigation highlights
         for k, btn in self.nav_buttons.items():
             if k == name:
-                btn.config(bg="#3867d6", fg="#ffffff")
+                btn.config(bg="#ff75a0", fg="#ffffff")
             else:
-                btn.config(bg="#1e272e", fg="#a4b0be")
+                btn.config(bg="#13131c", fg="#dec0f1")
 
         # Specific tab reloads if necessary
         if hasattr(self.pages[name], "reload_table"):
             self.pages[name].reload_table()
 
     def on_nav_enter(self, btn):
-        if btn["bg"] != "#3867d6":
-            btn.config(bg="#2f3542", fg="#ffffff")
+        """TODO: add documentation"""
+        if btn["bg"] != "#ff75a0":
+            btn.config(bg="#1a1a24", fg="#ff75a0")
 
     def on_nav_leave(self, btn):
-        if btn["bg"] != "#3867d6":
-            btn.config(bg="#1e272e", fg="#a4b0be")
+        """TODO: add documentation"""
+        if btn["bg"] != "#ff75a0":
+            btn.config(bg="#13131c", fg="#dec0f1")
 
     def reload_all_tabs(self):
+        """TODO: add documentation"""
         # Sync tab UI states with current RobotProfile data after updates/loads
         for name, frame in self.pages.items():
             if hasattr(frame, "reload_from_profile"):
@@ -170,9 +441,11 @@ class ModernApp(tk.Tk):
                 frame.reload_table()
 
     def connection_logger(self, msg):
+        """TODO: add documentation"""
         self.log_queue.put(msg)
 
     def connection_status_handler(self, status):
+        """TODO: add documentation"""
         # Update dashboard state and sidebar label in Indonesian
         if hasattr(self, "lbl_conn_status"):
             # Handle STEP progress messages
@@ -180,21 +453,24 @@ class ModernApp(tk.Tk):
                 try:
                     step_info = status[5:]  # "3/10"
                     current, total = step_info.split("/")
-                    self.lbl_conn_status.config(text=f"⚡ Langkah {current}/{total}", fg="#ffa502")
+                    self.lbl_conn_status.config(text=f"⚡ Langkah {current}/{total}", fg="#dec0f1")
                 except (ValueError, IndexError):
                     pass
             elif "Disconnected" in status:
                 indonesian_status = "Terputus"
                 self.lbl_conn_status.config(text=f"● {indonesian_status}", fg="#ff4757")
             elif "Connected (Simulated)" in status or "Connected" in status:
-                indonesian_status = "Terhubung" if "Connected" in status and "Simulated" not in status else "Terhubung (Simulasi)"
+                indonesian_status = (
+                    "Terhubung"
+                    if "Connected" in status and "Simulated" not in status
+                    else "Terhubung (Simulasi)"
+                )
                 self.lbl_conn_status.config(text=f"● {indonesian_status}", fg="#2ed573")
             elif "Active" in status:
                 indonesian_status = status.replace("Active:", "Aktif:")
-                self.lbl_conn_status.config(text=f"● {indonesian_status}", fg="#ffa502")
+                self.lbl_conn_status.config(text=f"● {indonesian_status}", fg="#dec0f1")
 
         # Track robot running state for time and earnings tracker
-        import time
         if "RUNNING" in status or status.startswith("STEP:"):
             if not self.robot_running:
                 self.robot_running = True
@@ -203,80 +479,14 @@ class ModernApp(tk.Tk):
             self.robot_running = False
             self.robot_start_time = None
 
-        if "Dashboard" in self.pages:
-            self.pages["Dashboard"].update_status_label(status)
+        if "Dashboard Utama" in self.pages:
+            self.pages["Dashboard Utama"].update_status_label(status)
 
     def on_connection_state_changed(self, connected):
+        """TODO: add documentation"""
         # Trigger full refresh
         pass
 
-    def start_http_bridge(self):
-        import http.server
-        import socketserver
-        import urllib.parse
-        import json
-        import os
-        
-        class BridgeHandler(http.server.SimpleHTTPRequestHandler):
-            connection_manager = self.connection
-            
-            def do_GET(self):
-                parsed_url = urllib.parse.urlparse(self.path)
-                
-                # API Endpoint for commands
-                if parsed_url.path == "/api/command":
-                    query = urllib.parse.parse_qs(parsed_url.query)
-                    cmd = query.get("cmd", [None])[0]
-                    if cmd:
-                        # Forward command directly to active serial connection
-                        if self.connection_manager.connected:
-                            self.connection_manager.send_command(cmd)
-                            status = "ok"
-                        else:
-                            self.connection_manager.log(f"[Wi-Fi Bridge] Menerima perintah: {cmd}")
-                            status = "ok"
-                        
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.send_header("Access-Control-Allow-Origin", "*")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": status}).encode("utf-8"))
-                    else:
-                        self.send_response(400)
-                        self.end_headers()
-                    return
-                
-                # Serve standard files from the 'mobile' directory
-                return super().do_GET()
-                
-            def translate_path(self, path):
-                # Translate path to the local mobile directory
-                parsed_url = urllib.parse.urlparse(path)
-                path_str = parsed_url.path
-                if path_str == "/" or path_str == "":
-                    path_str = "/index.html"
-                
-                # Strip leading slash
-                if path_str.startswith("/"):
-                    path_str = path_str[1:]
-                    
-                local_path = os.path.join(os.getcwd(), "mobile", path_str)
-                return local_path
-                
-        # Run Server on all interfaces (0.0.0.0) at port 8000
-        server_address = ('0.0.0.0', 8000)
-        try:
-            if hasattr(http.server, "ThreadingHTTPServer"):
-                httpd = http.server.ThreadingHTTPServer(server_address, BridgeHandler)
-            else:
-                class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
-                    pass
-                httpd = ThreadedHTTPServer(server_address, BridgeHandler)
-                
-            self.connection.log("Wi-Fi Remote Bridge Server aktif di port 8000.")
-            httpd.serve_forever()
-        except Exception as e:
-            self.connection.log(f"Gagal memulai Bridge Server: {str(e)}")
 
 if __name__ == "__main__":
     app = ModernApp()
