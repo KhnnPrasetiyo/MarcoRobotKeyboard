@@ -1,60 +1,85 @@
+"""TODO: module documentation"""
+
 import json
 
+
 class ServoConfig:
+    """TODO: add documentation"""
+
     def __init__(self, name, pin, up_angle=90, press_angle=45):
+        """TODO: add documentation"""
         self.name = name
         self.pin = pin
         self.up_angle = up_angle
         self.press_angle = press_angle
 
     def to_dict(self):
+        """TODO: add documentation"""
         return {
             "name": self.name,
             "pin": self.pin,
             "up_angle": self.up_angle,
-            "press_angle": self.press_angle
+            "press_angle": self.press_angle,
         }
 
     @classmethod
     def from_dict(cls, data):
+        """TODO: add documentation"""
         return cls(
             name=data["name"],
             pin=data["pin"],
             up_angle=data.get("up_angle", 90),
-            press_angle=data.get("press_angle", 45)
+            press_angle=data.get("press_angle", 45),
         )
 
 
 class Action:
+    """TODO: add documentation"""
+
     # Supported Actions
     TYPES = [
-        "NONE", "LEFT", "RIGHT", "UP", "DOWN", "A",
-        "BLINK_LEFT", "BLINK_RIGHT", "BLINK_UP", "BLINK_DOWN"
+        "NONE",
+        "LEFT",
+        "RIGHT",
+        "UP",
+        "DOWN",
+        "A",
+        "BLINK_LEFT",
+        "BLINK_RIGHT",
+        "BLINK_UP",
+        "BLINK_DOWN",
     ]
 
     def __init__(self, action_type="NONE", press_duration=200, delay_duration=500):
+        """TODO: add documentation"""
         self.action_type = action_type if action_type in self.TYPES else "NONE"
         self.press_duration = press_duration  # in ms
         self.delay_duration = delay_duration  # in ms
 
     def to_dict(self):
+        """TODO: add documentation"""
         return {
             "action_type": self.action_type,
             "press_duration": self.press_duration,
-            "delay_duration": self.delay_duration
+            "delay_duration": self.delay_duration,
         }
 
     @classmethod
     def from_dict(cls, data):
+        """TODO: add documentation"""
         return cls(
             action_type=data.get("action_type", "NONE"),
             press_duration=data.get("press_duration", 200),
-            delay_duration=data.get("delay_duration", 500)
+            delay_duration=data.get("delay_duration", 500),
         )
 
 
 class RobotProfile:
+    """TODO: add documentation"""
+
     def __init__(self):
+        """TODO: add documentation"""
+        self.file_path = None
         # Default 6 servos as required
         self.servos = [
             ServoConfig("LEFT", 2, 90, 45),
@@ -65,20 +90,27 @@ class RobotProfile:
             ServoConfig("A", 7, 90, 45),
         ]
         self.pattern = []  # List of Action objects
-        
+
         # Loop Settings
         self.loop_mode = "INFINITY"  # "INFINITY" or "CUSTOM"
         self.loop_count = 1
-        
+
         # Random Settings
         self.random_delay_enabled = False
         self.random_delay_min = 100
         self.random_delay_max = 1000
-        
+        self.random_skip_enabled = False  # Random blink skip per loop (50% chance)
+
+        # Blink Settings
+        self.blink_init_delay = 120
+        self.blink_hold_delay = 200
+        self.blink_release_delay = 120
+
         # Auto Start Settings
         self.auto_start = False
 
     def to_dict(self):
+        """TODO: add documentation"""
         return {
             "servos": [s.to_dict() for s in self.servos],
             "pattern": [a.to_dict() for a in self.pattern],
@@ -87,10 +119,15 @@ class RobotProfile:
             "random_delay_enabled": self.random_delay_enabled,
             "random_delay_min": self.random_delay_min,
             "random_delay_max": self.random_delay_max,
-            "auto_start": self.auto_start
+            "random_skip_enabled": self.random_skip_enabled,
+            "blink_init_delay": self.blink_init_delay,
+            "blink_hold_delay": self.blink_hold_delay,
+            "blink_release_delay": self.blink_release_delay,
+            "auto_start": self.auto_start,
         }
 
     def load_from_dict(self, data):
+        """TODO: add documentation"""
         if "servos" in data:
             self.servos = [ServoConfig.from_dict(s) for s in data["servos"]]
         if "pattern" in data:
@@ -100,11 +137,17 @@ class RobotProfile:
         self.random_delay_enabled = data.get("random_delay_enabled", False)
         self.random_delay_min = data.get("random_delay_min", 100)
         self.random_delay_max = data.get("random_delay_max", 1000)
+        self.random_skip_enabled = data.get("random_skip_enabled", False)
+        self.blink_init_delay = data.get("blink_init_delay", 120)
+        self.blink_hold_delay = data.get("blink_hold_delay", 200)
+        self.blink_release_delay = data.get("blink_release_delay", 120)
         self.auto_start = data.get("auto_start", False)
 
     def to_json(self):
+        """TODO: add documentation"""
         return json.dumps(self.to_dict(), indent=4)
 
     def load_from_json(self, json_str):
+        """TODO: add documentation"""
         data = json.loads(json_str)
         self.load_from_dict(data)

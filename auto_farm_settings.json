@@ -1,0 +1,12 @@
+{
+    "enabled_rune": false,
+    "enabled_boss": true,
+    "enabled_lie_detector": true,
+    "interact_key": "space",
+    "jump_key": "alt",
+    "vertical_jump_mode": "double_jump",
+    "blink_key": "shift",
+    "random_skip_enabled": false,
+    "roboflow_api_key": "4useHPDmgrlnnEc9uIR1, dxcHG3bmFP7FQtJTyKyf",
+    "rune_input_mode": "software"
+}
