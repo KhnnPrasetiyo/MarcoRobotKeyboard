@@ -115,6 +115,9 @@ class AutoFarmController:
         self.scaled_elite = None
         self.scaled_death = None
 
+        # Track physical servo states to avoid flooding the Arduino with duplicate commands
+        self.key_states = {}
+
         # Initialize pygame mixer for sound alerts
         try:
             pygame.mixer.init()
@@ -290,11 +293,13 @@ class AutoFarmController:
         ):
             for _ in range(n):
                 self._hardware_press_key(logical_key, down_time, up_time)
+            self.key_states[logical_lower] = "up"
         else:
             self.connection.log(
                 f"[DEBUG-VIRTUAL] Menekan tombol virtual '{actual_key}' ({logical_key.upper()})"
             )
             vkeys.press(actual_key, n, down_time, up_time)
+            self.key_states[logical_lower] = "up"
 
     def _send_puzzle_sequence(self, solution):
         """Kirim urutan puzzle ke Arduino. Arduino handle kalibrasi sendiri."""
@@ -318,6 +323,9 @@ class AutoFarmController:
 
     def _release_all_keys(self):
         """Force-release semua tombol virtual/fisik untuk mencegah input 'ghost'."""
+        # Reset our internal state tracker as we are forcing a release on everything
+        self.key_states.clear()
+
         # 1. Always release all virtual keys to prevent stuck keys
         keys_to_release = ["left", "right", "up", "down"]
         interact = self.settings.get("interact_key", "space")
@@ -338,7 +346,7 @@ class AutoFarmController:
             except Exception:
                 pass
         self.connection.log(
-            f"[DEBUG-VIRTUAL] Force-release semua tombol virtual: {', '.join(keys_to_release)}"
+            f"[DEBUG-SAFETY] Force-release semua tombol virtual untuk keamanan: {', '.join(keys_to_release)}"
         )
 
         # 2. Release physical servos if hardware mode is active
@@ -361,6 +369,11 @@ class AutoFarmController:
             actual_key = self.settings.get("blink_key", "shift")
         elif logical_lower == "jump":
             actual_key = self.settings.get("jump_key", "alt")
+
+        # Deduplicate to prevent flooding serial command queue
+        if self.key_states.get(logical_lower) == "down":
+            return
+        self.key_states[logical_lower] = "down"
 
         is_hardware_action = logical_lower.startswith("puzzle_") or logical_lower in [
             "left",
@@ -392,6 +405,11 @@ class AutoFarmController:
             actual_key = self.settings.get("blink_key", "shift")
         elif logical_lower == "jump":
             actual_key = self.settings.get("jump_key", "alt")
+
+        # Deduplicate to prevent flooding serial command queue
+        if self.key_states.get(logical_lower) == "up":
+            return
+        self.key_states[logical_lower] = "up"
 
         is_hardware_action = logical_lower.startswith("puzzle_") or logical_lower in [
             "left",
